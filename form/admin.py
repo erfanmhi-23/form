@@ -9,9 +9,9 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Form)
 class FormAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'category', 'force', 'question_num', 'view_count', 'create', 'update')
+    list_display = ('id', 'title', 'category', 'force', 'question_num', 'view_count', 'create', 'update', 'answer_num')
     search_fields = ('title', 'question', 'description')
-    list_filter = ('category', 'force', 'question_num', 'create')
+    list_filter = ('category', 'force', 'question_num', 'create', 'answer_num')
 
 @admin.register(Text)
 class TextAdmin(admin.ModelAdmin):
