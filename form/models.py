@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.postgres.fields import ArrayField
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
@@ -37,8 +38,12 @@ class Form(models.Model):
             ('rating', 'Rating')
         ] 
     )
-    options = models.JSONField(blank=True, null=True)
-    
+    options = ArrayField(                     
+        base_field=models.CharField(max_length=255),
+        blank=True,
+        null=True,
+        default=list
+    )
     def __str__(self):
         return self.title
 
