@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'form',
     'conclusion',
     'django.contrib.postgres',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
