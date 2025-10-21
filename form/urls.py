@@ -1,9 +1,11 @@
 from django.urls import path
-from . import views
+from .views import FormListView, FormDetailView
+import views
+
 
 urlpatterns = [
-    path('forms/', views.form_list_create, name='form-list-create'),
-    path('forms/<int:form_id>/detail/', views.form_detail, name='form-detail'),
+    path('forms/', FormListView.as_view(), name='form-list'),
+    path('forms/<int:form_id>/detail/', FormDetailView.as_view(), name='form-detail'), 
     path('forms/<int:form_id>/update/', views.form_update, name='form-update'),
     path('forms/<int:form_id>/delete/', views.form_delete, name='form-delete'),
 
