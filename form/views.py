@@ -11,6 +11,13 @@ class FormListView(APIView):
         serializer = FormSerializer(forms, many=True)
         return Response(serializer.data)
 
+    def post(self, request):
+        serializer = FormSerializer(data=request.data)
+        if serializer.is_valid():
+            created = serializer.save()
+            return Response(FormSerializer(created).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class FormDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     def get(self, request, form_id):
