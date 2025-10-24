@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth import update_session_auth_hash
 from accounts.models import EmailOTP
 from accounts.serializers import EmailSerializer, OTPVerifySerializer,SignupSerializer, UserSerializer,DeleteAccountSerializer, ChangePasswordSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 User = get_user_model()
@@ -70,11 +71,19 @@ class SignupAPIView(APIView):
         serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            login(request, user)
-            serializer_user = UserSerializer(user)
-            return Response({"detail":"ثبت‌نام موفق بود.", "user": serializer_user.data}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            refresh = RefreshToken.for_user(user)
+            access_token = str(refresh.access_token)
+
+            serializer_user = UserSerializer(user)
+            return Response({
+                "detail": "ثبت‌نام موفق بود.",
+                "user": serializer_user.data,
+                "refresh": str(refresh),
+                "access": access_token
+            }, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ProfileAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
