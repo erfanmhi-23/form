@@ -48,3 +48,4 @@ wheel==0.42.0
 xdg==5
 psycopg2-binary
 Django>=4.2,<5.0
+djangorestframework>=3.14
