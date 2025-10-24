@@ -1,20 +1,25 @@
-from django.shortcuts import render , redirect
-from accounts.forms import EmailForm , SignupForm , UserForm , DeleteAccountForm
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
+from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth import update_session_auth_hash
 from accounts.models import EmailOTP
-from django.core.mail import send_mail
-from django.contrib import messages
-from django.http import HttpResponse
-from django.contrib.auth import get_user_model, login , logout , update_session_auth_hash
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import PasswordChangeForm
+from accounts.serializers import EmailSerializer, OTPVerifySerializer,SignupSerializer, UserSerializer,DeleteAccountSerializer, ChangePasswordSerializer
 
-def send_email_otp(request):
-    if request.method == "POST":
-        form = EmailForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data["email"]
+
+User = get_user_model()
+
+class SendEmailOTPAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = EmailSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
             otp_code = EmailOTP.generate_otp()
             EmailOTP.objects.create(email=email, code=otp_code)
+    
+            from django.core.mail import send_mail
             send_mail(
                 "کد ورود شما",
                 f"کد ورود شما: {otp_code}",
@@ -22,81 +27,105 @@ def send_email_otp(request):
                 [email],
                 fail_silently=False,
             )
-            request.session["email"] = email
-            messages.success(request, "کد OTP به ایمیل شما ارسال شد.")
-            return redirect("verify_email_otp")
-    else:
-        form = EmailForm()
-    return render(request, "user/email_form.html", {"form": form})
+            
+            request.session['email'] = email
+            return Response({"detail": "کد OTP به ایمیل شما ارسال شد."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-def verify_email_otp(request):
-    if request.method == "POST":
-        code = request.POST.get("code")
-        email = request.session.get("email")
+
+class VerifyEmailOTPAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = OTPVerifySerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        code = serializer.validated_data['code']
+        email = request.session.get('email')
+        if not email:
+            return Response({"detail":"ایمیل در session وجود ندارد."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            otp = EmailOTP.objects.filter(email=email, code=code, is_used=False).latest("created_at")
+            otp = EmailOTP.objects.filter(email=email, code=code, is_used=False).latest('created_at')
         except EmailOTP.DoesNotExist:
-            messages.error(request, "کد اشتباه است یا پیدا نشد.")
-            return redirect("verify_email_otp")
+            return Response({"detail": "کد اشتباه است یا پیدا نشد."}, status=status.HTTP_400_BAD_REQUEST)
+
         if otp.is_expired():
-            messages.error(request, "کد منقضی شده است.")
-            return redirect("send_email_otp")
+            return Response({"detail": "کد منقضی شده است."}, status=status.HTTP_400_BAD_REQUEST)
+
         otp.is_used = True
         otp.save()
-        user = get_user_model().objects.get_or_create(username=email, defaults={"email": email})
+
+        user, created = User.objects.get_or_create(username=email, defaults={'email': email})
         login(request, user)
-        messages.success(request, "ورود موفقیت‌آمیز بود.")
-        return redirect("home")
-    return render(request, "user/verify_email_otp.html")
+        serializer_user = UserSerializer(user)
+        return Response({"detail":"ورود موفقیت‌آمیز بود.", "user": serializer_user.data}, status=status.HTTP_200_OK)
 
-def google_callback(request):
-    code = request.GET.get('code')
-    if not code:
-        return HttpResponse("کد OAuth گوگل پیدا نشد!")
 
-    return HttpResponse(f"ورود با گوگل موفق! کد برگشتی گوگل: {code}")
+class SignupAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
 
-def signup(request):
-    form = SignupForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        user = form.save()
+    def post(self, request):
+        serializer = SignupSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            login(request, user)
+            serializer_user = UserSerializer(user)
+            return Response({"detail":"ثبت‌نام موفق بود.", "user": serializer_user.data}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProfileAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"detail":"پروفایل ذخیره شد.", "user": serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteAccountAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = DeleteAccountSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        password = serializer.validated_data['password']
+        if not request.user.check_password(password):
+            return Response({"password": ["رمز عبور اشتباه است."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        logout(request)
+        user.delete()
+        return Response({"detail":"حساب شما حذف شد."}, status=status.HTTP_200_OK)
+
+
+class ChangePasswordAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        old_password = serializer.validated_data['old_password']
+        new_password = serializer.validated_data['new_password']
+
+        user = request.user
+        if not user.check_password(old_password):
+            return Response({"old_password": ["رمز عبور فعلی اشتباه است."]}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
         user.save()
-        login(request, user)
-        return redirect("user:post_login_router")
-    return render(request, "registration/signup.html", {"form": form})
-
-@login_required
-def profile(request):
-    form = UserForm(request.POST or None, instance=request.user)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "پروفایل ذخیره شد.")
-        return redirect("user:profile")
-    return render(request, "user/profile.html", {"form": form})
-
-@login_required
-def delete_account(request):
-    form = DeleteAccountForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        if not request.user.check_password(form.cleaned_data["password"]):
-            form.add_error("password", "رمز عبور اشتباه است.")
-        else:
-            u = request.user
-            logout(request)
-            u.delete()
-            messages.success(request, "حساب شما حذف شد.")
-            return redirect("user:select_role")
-    return render(request, "user/delete_account.html", {"form": form})
-
-@login_required
-def change_password(request):
-    if request.method == "POST":
-        form = PasswordChangeForm(request.user, data=request.POST)
-        if form.is_valid():
-            user = form.save()
-            update_session_auth_hash(request, user)
-            messages.success(request, "رمز عبور با موفقیت تغییر کرد.")
-            return redirect("user:post_login_router")
-    else:
-        form = PasswordChangeForm(request.user)
-    return render(request, "user/change_password.html", {"form": form})
+        
+        update_session_auth_hash(request, user)
+        return Response({"detail":"رمز عبور با موفقیت تغییر کرد."}, status=status.HTTP_200_OK)
