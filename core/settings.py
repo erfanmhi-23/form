@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'conclusion',
     'django.contrib.postgres',
     'rest_framework',
+    'rest_framework_simplejwt'
 ]
 
 MIDDLEWARE = [
@@ -81,7 +82,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'appointment_db',
+        'NAME': 'form_db',
         'USER': 'postgres',
         'PASSWORD' : 'postgres',
         'HOST':'db',
@@ -131,7 +132,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = "user.User"
+AUTH_USER_MODEL = "accounts.User"
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 LOGIN_URL = '/login/'
@@ -145,6 +146,14 @@ EMAIL_HOST_USER = 'djangop065@gmail.com'
 EMAIL_HOST_PASSWORD = 'zjjj mxcg fsgz rybl'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
-################ Google OAuth ################
-GOOGLE_CLIENT_ID = "1017978674796-eioru30jaop3eouk89dsq288i1kcdq1e.apps.googleusercontent.com"
-GOOGLE_REDIRECT_URI = "http://localhost:8000/accounts/google/login/callback/"
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    )
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
