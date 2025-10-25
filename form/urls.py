@@ -1,13 +1,16 @@
 from django.urls import path
-from .views import FormListView, FormDetailView, FormDeleteView, FormUpdateView
-import views
-
+from .views import FormListView, FormDetailView, FormDeleteView, FormUpdateView, CategoryListView, CategoryRenameView
+from . import views
 
 urlpatterns = [
     path('forms/', FormListView.as_view(), name='form-list'),
     path('forms/<int:form_id>/detail/', FormDetailView.as_view(), name='form-detail'), 
     path('forms/<int:form_id>/update/', FormUpdateView.as_view(), name='form-update'),
     path('forms/<int:form_id>/delete/', FormDeleteView.as_view(), name='form-delete'),
+
+    #category
+    path('categories/', CategoryListView.as_view(), name='category-list'),
+    path('categories/<int:category_id>/rename/', CategoryRenameView.as_view(), name='category-rename'),
 
     path('forms/<int:form_id>/text/', views.text_list_create, name='text-list-create'),
     path('forms/<int:form_id>/text/<int:text_id>/detail/', views.text_detail, name='text-detail'),
