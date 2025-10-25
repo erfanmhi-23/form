@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from .models import Form
-from .serializers import FormSerializer
+from .serializers import FormSerializer, CategorySerializer
 
 class FormListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
