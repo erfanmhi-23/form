@@ -3,11 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from .models import Form, Category
 from .serializers import FormSerializer, CategorySerializer
-<<<<<<< HEAD
 from .models import Form,Process,Answer
 from .serializers import FormSerializer,AnswerSerializer, ProcessSerializer
-=======
->>>>>>> origin/form/views
 
 class FormListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
