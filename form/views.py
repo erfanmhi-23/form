@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .models import Form
-from .serializers import FormSerializer
+from .models import Form, Category
+from .serializers import FormSerializer, CategorySerializer
 
 class FormListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -65,3 +65,11 @@ class FormUpdateView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class CategoryListView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data)

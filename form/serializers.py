@@ -2,12 +2,12 @@ from rest_framework import serializers
 from .models import Category, Form, Process, Answer
 
 class CategorySerializer(serializers.ModelSerializer):
-    class meta :
+    class Meta :
         model = Category
         fields = ['id', 'name', 'description', 'create', 'update' ]
 
 class FormSerializer(serializers.ModelSerializer):
-    class meta:
+    class Meta:
         model = Form
         fields = [
             'id', 'category', 'title', 'question', 'description',
