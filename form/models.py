@@ -26,7 +26,7 @@ class Form(models.Model):
     force = models.BooleanField(default=False)
     create = models.DateTimeField(auto_now_add=True)
     update = models.DateTimeField(auto_now=True)
-    password = models.CharField(max_length=255)
+    password = models.CharField(max_length=255)#blank True
     view_count = models.IntegerField(default=0)
     question_num = models.BooleanField(default=False)
     type = models.CharField(
