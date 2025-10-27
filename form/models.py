@@ -22,11 +22,12 @@ class Form(models.Model):
     question = models.CharField(max_length=255)
     description = models.CharField(max_length=255)
     validation = models.CharField(max_length=255)
+    min = models.IntegerField(default=1)
     max = models.IntegerField()
     force = models.BooleanField(default=False)
     create = models.DateTimeField(auto_now_add=True)
     update = models.DateTimeField(auto_now=True)
-    password = models.CharField(max_length=255)#blank True
+    password = models.CharField(max_length=255, blank=True, null=True)
     view_count = models.IntegerField(default=0)
     question_num = models.BooleanField(default=False)
     type = models.CharField(
