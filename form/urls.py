@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import FormListView, FormDetailView, FormDeleteView, FormUpdateView, CategoryListView, CategoryRenameView
-from . import views
+from .views import FormListView, FormDetailView, FormDeleteView, FormUpdateView, CategoryListView, CategoryRenameView,AnswerView
+
+
 
 urlpatterns = [
     path('forms/', FormListView.as_view(), name='form-list'),
@@ -26,4 +27,6 @@ urlpatterns = [
     #path('forms/<int:form_id>/rating/<int:rating_id>/detail/', views.rating_detail, name='rating-detail'),
     #path('forms/<int:form_id>/rating/<int:rating_id>/update/', views.rating_update, name='rating-update'),
     #path('forms/<int:form_id>/rating/<int:rating_id>/delete/', views.rating_delete, name='rating-delete'),
+
+    path('forms/<int:form_id>/answers/', AnswerView.as_view(), name='submit-answers'),
 ]
