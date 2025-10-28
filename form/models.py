@@ -50,9 +50,9 @@ class Form(models.Model):
 
 
 class Process(models.Model):
-    form = models.ForeignKey(
-        Form,
-        on_delete=models.CASCADE,
+    name = models.CharField(max_length=255,default="process")
+    forms = models.ManyToManyField(
+        'Form',
         related_name='processes'
     )
     liner = models.BooleanField(default=False)

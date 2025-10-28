@@ -15,9 +15,9 @@ class FormAdmin(admin.ModelAdmin):
 
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
-    list_display = ('id', 'form', 'liner', 'view_count')
+    list_display = ('id', 'liner', 'view_count')
     search_fields = ('form__title',)
-    list_filter = ('liner', 'form')
+    list_filter = ('liner',)
 
 @admin.register(Answer)
 class AnswerAdmin(admin.ModelAdmin):
