@@ -95,17 +95,19 @@ body requirements:
 +authorization
 method:delete
 ---------------
-
-url:
-body requirements:
-method:
+17.processes list forms
+url:http://localhost:8000/form/processes/
+body requirements:name, list[form_ids]
++authorization
+method:post
 ---------------
-
-url:
+18.show all processes
+url:http://localhost:8000/form/processes/id/
 body requirements:
-method:
++authorization
+method:get
 ---------------
-
+19.
 url:
 body requirements:
 method:
