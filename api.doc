@@ -1,0 +1,135 @@
+--------------
+#account#
+--------------
+1.ثبت نام کاربر
+url:http://localhost:8000/auth/signup/
+body requirements: username, email , password
+method:post
+---------------
+2.پروفایل کاربر
+url:http://localhost:8000/auth/profile/
+body requirements: []
+method:get
+---------------
+3.عوض کردن پسورد کاربر
+url:http://localhost:8000/auth/passwordChange/
+body requirements: oldpassword, newpassword
+method: post
+---------------
+4.حذف حساب کاربر
+url:http://localhost:8000/auth/profileDelete/
+body requirements:password
++authorization
+method:post
+---------------
+5.otp(email)
+url:http://localhost:8000/auth/login/email/
+body requirements:email, password
+method:post
+---------------
+6.verify otp 
+url:http://localhost:8000/auth/login/email/verify/
+body requirements:code
+method:post
+---------------
+7.token
+url:http://localhost:8000/auth/token/
+body requirements:username, password
+method:post
+---------------
+#form#
+---------------
+8.create category
+url:http://localhost:8000/form/categories/
+body requirements:name, discription 
++authorization
+method:post
+---------------
+9.see all category
+url:http://localhost:8000/form/categories/
+body requirements:[]
++authorization
+method:get
+---------------
+10.rename category
+url:http://localhost:8000/form/categories/id/rename/
+body requirements:name
+method:patch
+---------------
+11.create form
+url:http://localhost:8000/form/forms/
+body requirements:title, question, max, option, type
+-type:checkbox:options:["1","2",...]:multiple
+-type:select:options:["1","2",...]
+-type:rating(1,5):options:["1","2",..."n"]
+-type:text
+method:post
+---------------
+12.see all form
+url:http://localhost:8000/form/forms/
+body requirements:[]
++authorization
+method:get
+---------------
+13.form detail
+url:http://localhost:8000/form/id/detail
+body requirements:[]
++authorization
+method:get
+---------------
+14.update form(complete)
+url:http://localhost:8000/form/id/update/
+body requirements:title,question,validation,max,type
++authorization
+method:put
+---------------
+15.update form(detail)
+url:http://localhost:8000/form/id/update/
+body requirements:
++authorization
+method:patch
+---------------
+16.delete form
+url:http://localhost:8000/form/id/delete/
+body requirements:
++authorization
+method:delete
+---------------
+
+url:
+body requirements:
+method:
+---------------
+
+url:
+body requirements:
+method:
+---------------
+
+url:
+body requirements:
+method:
+---------------
+
+url:
+body requirements:
+method:
+---------------
+
+url:
+body requirements:
+method:
+---------------
+
+url:
+body requirements:
+method:
+---------------
+
+url:
+body requirements:
+method:
+---------------
+
+
+
