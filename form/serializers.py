@@ -20,9 +20,14 @@ class FormSerializer(serializers.ModelSerializer):
         return data
 
 class ProcessSerializer(serializers.ModelSerializer):
+    forms = FormSerializer(many=True, read_only=True)  
+    form_ids = serializers.PrimaryKeyRelatedField(
+        many=True, queryset=Form.objects.all(), write_only=True, source='forms'
+    ) 
+
     class Meta:
         model = Process
-        fields = ['id', 'form', 'liner', 'password', 'view_count']
+        fields = ['id', 'name', 'liner', 'password', 'view_count', 'forms', 'form_ids']
 
 class AnswerSerializer(serializers.ModelSerializer):
     class Meta:

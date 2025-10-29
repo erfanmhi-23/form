@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status, permissions , generics
 from .serializers import FormSerializer, CategorySerializer,AnswerSerializer, ProcessSerializer
 from .models import Form,Process,Answer, Category
 
@@ -100,6 +100,25 @@ class CategoryRenameView(APIView):
         c.name = name
         c.save(update_fields=['name'])
         return Response({'id': c.id, 'name': c.name}, status=status.HTTP_200_OK)
+    
+class ProcessListCreateAPIView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    queryset = Process.objects.all()
+    serializer_class = ProcessSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        process = serializer.save()
+        return Response(ProcessSerializer(process).data, status=status.HTTP_201_CREATED)
+
+
+class ProcessRetrieveAPIView(generics.RetrieveAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    queryset = Process.objects.all()
+    serializer_class = ProcessSerializer
     
 #چت بات 
 #test

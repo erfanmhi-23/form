@@ -86,7 +86,7 @@ class Form(models.Model):
 
 
 class Process(models.Model):
-    name = models.CharField(max_length=255,default="process")
+    name = models.CharField(max_length=255)#category 
     forms = models.ManyToManyField(
         'Form',
         related_name='processes'
@@ -99,7 +99,7 @@ class Process(models.Model):
         db_table = 'process'
 
     def __str__(self):
-        return f"Process for {self.form}"
+        return f"Process for {self.forms}"
     
 class Answer(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE,related_name='answers')
