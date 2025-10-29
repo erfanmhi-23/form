@@ -14,6 +14,10 @@ class FormSerializer(serializers.ModelSerializer):
             'validation', 'max', 'force', 'create', 'update',
             'password', 'view_count', 'question_num', 'type', 'options'
         ]
+    def validate(self, data):
+        instance = Form(**data)
+        instance.clean()
+        return data
 
 class ProcessSerializer(serializers.ModelSerializer):
     class Meta:

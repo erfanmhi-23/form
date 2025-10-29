@@ -1,8 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from django.contrib.auth import get_user_model, login, logout
-from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth import get_user_model, login, logout ,update_session_auth_hash 
 from accounts.models import EmailOTP
 from accounts.serializers import EmailSerializer, OTPVerifySerializer,SignupSerializer, UserSerializer,DeleteAccountSerializer, ChangePasswordSerializer
 from rest_framework_simplejwt.tokens import RefreshToken

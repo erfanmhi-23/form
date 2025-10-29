@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ValidationError
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
@@ -20,8 +21,8 @@ class Form(models.Model):
     )
     title = models.CharField(max_length=255)
     question = models.CharField(max_length=255)
-    description = models.CharField(max_length=255)
-    validation = models.CharField(max_length=255)
+    description = models.CharField(max_length=255,blank=True)
+    validation = models.BooleanField()
     min = models.IntegerField(default=1)
     max = models.IntegerField()
     force = models.BooleanField(default=False)
@@ -45,6 +46,41 @@ class Form(models.Model):
         null=True,
         default=list
     )
+
+    
+    def clean(self):
+        super().clean()
+
+ 
+        if self.type in ['checkbox', 'select']:
+            if not self.options or len(self.options) == 0:
+                raise ValidationError("برای نوع checkbox یا select باید گزینه‌ها (options) پر شود.")
+            for opt in self.options:
+                if not isinstance(opt, str):
+                    raise ValidationError("تمام گزینه‌ها باید رشته (string) باشند.")
+
+   
+        elif self.type == 'rating':
+            if not self.options or len(self.options) == 0:
+                self.options = ['1', '2', '3', '4', '5']  
+            else:
+
+                for opt in self.options:
+                    try:
+                        int(opt)
+                    except ValueError:
+                        raise ValidationError("تمام گزینه‌ها برای نوع rating باید عددی باشند.")
+
+  
+        elif self.type == 'text':
+            if self.options and len(self.options) > 0:
+                raise ValidationError("برای نوع text نیازی به options نیست.")
+            
+    def save(self, *args, **kwargs):
+        if self.type == 'rating' and (not self.options or len(self.options) == 0):
+            self.options = ['1', '2', '3', '4', '5']
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.title
 
