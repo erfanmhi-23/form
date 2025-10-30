@@ -16,5 +16,5 @@ urlpatterns = [
     path('processes/', ProcessListCreateAPIView.as_view(), name='process-list-create'),
     path('processes/<int:pk>/', ProcessRetrieveAPIView.as_view(), name='process-detail'),
 
-    path('forms/<int:form_id>/answers/', AnswerView.as_view(), name='submit-answers'),
+    path('forms/answers/', AnswerView.as_view(), name='submit-answers'),
 ]

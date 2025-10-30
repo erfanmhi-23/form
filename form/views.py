@@ -119,83 +119,95 @@ class ProcessRetrieveAPIView(generics.RetrieveAPIView):
 
     queryset = Process.objects.all()
     serializer_class = ProcessSerializer
-    
-#چت بات 
-#test
+
 class AnswerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request, form_id):
+    def post(self, request):
         """
-        ثبت پاسخ‌های یک فرم مشخص.
-        فرمت ورودی:
+        ثبت پاسخ‌ها برای یک Process (که خودش شامل چند فرم است).
+        ورودی:
         {
+            "process_id": 5,
             "answers": [
-                {"type": "text", "answer": "Blue"},
-                {"type": "select", "answer": "Option 1"},
-                {"type": "checkbox", "answer": ["Option 2", "Option 3"]},
-                {"type": "rating", "answer": 4}
+                {"form_id": 2, "type": "text", "answer": "Blue"},
+                {"form_id": 3, "type": "rating", "answer": 4}
             ]
         }
         """
-        try:
-            form = Form.objects.get(id=form_id)
-        except Form.DoesNotExist:
-            return Response({'error': 'Form not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        # ایجاد Process جدید برای این فرم
-        process = Process.objects.create(
-            form=form,
-            liner=False,
-            password=None,
-            view_count=0
-        )
-
+        process_id = request.data.get('process_id')
         answers_data = request.data.get('answers', [])
+
+        if not process_id:
+            return Response({'error': 'process_id is required.'}, status=400)
+
+        try:
+            process = Process.objects.prefetch_related('forms').get(id=process_id)
+        except Process.DoesNotExist:
+            return Response({'error': 'Process not found.'}, status=404)
+        
+        if not answers_data:
+            return Response({'error': 'answers cannot be empty.'}, status=400)
+
+        process_forms = {f.id: f for f in process.forms.all()}  # dict برای دسترسی سریع
         created_answers = []
 
         for item in answers_data:
+            form_id = item.get('form_id')
             answer_type = item.get('type')
             answer_value = item.get('answer')
 
-            # --- منطق select / checkbox ---
+            # بررسی وجود فرم در پروسس
+            form = process_forms.get(form_id)
+            if not form:
+                return Response({
+                    'error': f'Form {form_id} does not belong to this process.'
+                }, status=400)
+
+            # بررسی نوع پاسخ با نوع فرم
+            if answer_type != form.type:
+                return Response({
+                    'error': f'Type mismatch: Form type is {form.type}, but answer type is {answer_type}.',
+                    'form_id': form.id
+                }, status=400)
+
+            # اعتبارسنجی پاسخ‌ها مثل قبل
             if answer_type in ['select', 'checkbox']:
                 if isinstance(answer_value, list):
-                    # checkbox چند گزینه‌ای
                     invalid_options = [opt for opt in answer_value if opt not in form.options]
                     if invalid_options:
-                        process.delete()  # rollback
                         return Response({
                             'error': 'Invalid option(s) selected.',
-                            'invalid_options': invalid_options
-                        }, status=status.HTTP_400_BAD_REQUEST)
+                            'invalid_options': invalid_options,
+                            'form_id': form.id
+                        }, status=400)
                 else:
-                    # select تک گزینه
                     if answer_value not in form.options:
-                        process.delete()  # rollback
                         return Response({
                             'error': 'Invalid option selected.',
-                            'invalid_option': answer_value
-                        }, status=status.HTTP_400_BAD_REQUEST)
+                            'invalid_option': answer_value,
+                            'form_id': form.id
+                        }, status=400)
 
-            # --- منطق rating ---
             elif answer_type == 'rating':
                 try:
                     rating_value = int(answer_value)
                 except (ValueError, TypeError):
-                    process.delete()
                     return Response({
-                        'error': 'Rating must be an integer.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                        'error': 'Rating must be an integer.',
+                        'form_id': form.id
+                    }, status=400)
 
-                if rating_value < 1 or rating_value > form.max:
-                    process.delete()
+                # چک اینکه rating داخل گزینه‌های فرم باشد
+                allowed_options = [int(opt) for opt in form.options]  # تبدیل options به int
+                if rating_value not in allowed_options:
                     return Response({
-                        'error': f'Rating must be between 1 and {form.max}.',
+                        'error': f'Invalid rating. Must be one of {allowed_options}.',
+                        'form_id': form.id,
                         'invalid_rating': rating_value
-                    }, status=status.HTTP_400_BAD_REQUEST)
+                    }, status=400)
 
-            # --- ذخیره پاسخ ---
+            # ذخیره پاسخ
             serializer = AnswerSerializer(data={
                 'form': form.id,
                 'process': process.id,
@@ -207,11 +219,10 @@ class AnswerView(APIView):
                 serializer.save()
                 created_answers.append(serializer.data)
             else:
-                process.delete()  # rollback
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return Response(serializer.errors, status=400)
 
         return Response({
             'message': 'Answers saved successfully.',
             'process_id': process.id,
             'answers': created_answers
-        }, status=status.HTTP_201_CREATED)
+        }, status=201)
