@@ -24,7 +24,7 @@ class Form(models.Model):
     description = models.CharField(max_length=255,blank=True)
     validation = models.BooleanField()
     min = models.IntegerField(default=1)
-    max = models.IntegerField()
+    max = models.IntegerField(null=True, blank=True)
     force = models.BooleanField(default=False)
     create = models.DateTimeField(auto_now_add=True)
     update = models.DateTimeField(auto_now=True)

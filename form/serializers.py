@@ -30,6 +30,8 @@ class ProcessSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'liner', 'password', 'view_count', 'forms', 'form_ids']
 
 class AnswerSerializer(serializers.ModelSerializer):
+    answer = serializers.JSONField()
+    
     class Meta:
         model = Answer
         fields = ['id', 'process', 'form', 'type', 'answer']

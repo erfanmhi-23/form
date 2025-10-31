@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
-from form.models import Form
+from form.models import Form , Process
+from accounts.models import User
 
 class ReportSubscription(models.Model):
     REPORT_INTERVAL_CHOICES = [
@@ -21,11 +22,14 @@ class ReportSubscription(models.Model):
     def __str__(self):
         return f"{self.email} - {self.form.title} ({self.interval})"
 
-class FormReport(models.Model):
-    form = models.OneToOneField(Form, on_delete=models.CASCADE, related_name='report')
+class Conclusion(models.Model):
+    user = models.ForeignKey(User,on_delete=models.CASCADE, related_name="user")
+    process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name='report')
     view_count = models.IntegerField(default=0)
     answer_count = models.IntegerField(default=0)
-    summary = models.JSONField(default=dict)
+    answer_list = models.JSONField(default=dict)
+    mean_rating = models.FloatField(blank=True,null=True)
+    usable_category = models.CharField(blank=True,null=True)
 
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -33,5 +37,5 @@ class FormReport(models.Model):
         ordering = ['-updated_at']
 
     def __str__(self):
-        return f"Report for {self.form.title}"
+        return f"Report for {self.process}"
 
