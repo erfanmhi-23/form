@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status, permissions , generics
 from django.db import models
 from .serializers import FormSerializer, CategorySerializer,AnswerSerializer, ProcessSerializer
-from .models import Form,Process,Answer, Category
+from .models import Form,Process, Category 
+from conclusion.models import Conclusion
 
 
 class FormListView(APIView):
@@ -126,20 +127,6 @@ class AnswerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        """
-        ثبت پاسخ‌ها برای یک Process.
-        اگر Process یا Form پسورد داشته باشند باید ارسال شوند.
-
-        ورودی نمونه:
-        {
-            "process_id": 5,
-            "process_password": "xyz123",
-            "answers": [
-                {"form_id": 2, "type": "text", "answer": "Blue", "password": "abc123"},
-                {"form_id": 3, "type": "rating", "answer": 4}
-            ]
-        }
-        """
         process_id = request.data.get('process_id')
         process_password = request.data.get('process_password')
         answers_data = request.data.get('answers', [])
@@ -166,7 +153,7 @@ class AnswerView(APIView):
         process_forms = {f.id: f for f in process_forms_qs}
         created_answers = []
 
-        # 🟢 فرم‌های فعال
+        # 🟢 فرم‌های فعال و اجباری
         active_forms = [f for f in process_forms_qs if f.validation]
         required_forms = [f for f in active_forms if f.force]
 
@@ -237,14 +224,16 @@ class AnswerView(APIView):
                         return Response({
                             'error': 'Invalid option(s) selected.',
                             'invalid_options': invalid_options,
-                            'form_id': form.id
+                            'form_id': form.id,
+                            'allowed_options': form.options  
                         }, status=400)
                 else:
                     if answer_value not in form.options:
                         return Response({
                             'error': 'Invalid option selected.',
                             'invalid_option': answer_value,
-                            'form_id': form.id
+                            'form_id': form.id,
+                            'allowed_options': form.options  
                         }, status=400)
 
             elif answer_type == 'rating':
@@ -313,8 +302,47 @@ class AnswerView(APIView):
         process.view_count = models.F('view_count') + 1
         process.save(update_fields=['view_count'])
 
+        # 🧠 ثبت در Conclusion
+        user = request.user
+        conclusion = Conclusion.objects.create(
+            user=user,
+            process=process,
+            view_count=1,
+            answer_count=0,
+            answer_list={}
+        )
+
+        # به‌روزرسانی لیست پاسخ‌ها (فقط اگر text نباشد)
+        for ans in created_answers:
+            form_id = ans["form"]
+            form_obj = process_forms.get(form_id)
+            if form_obj and form_obj.type != "text":  # 🚫 ذخیره نکند اگر text است
+                conclusion.answer_list[str(form_id)] = ans["answer"]
+
+        # بروزرسانی تعداد پاسخ‌ها
+        conclusion.answer_count = len(conclusion.answer_list)
+
+        # اگر همه فرم‌ها rating بودند → محاسبه‌ی میانگین
+        process_forms_types = [f.type for f in process.forms.all()]
+        if all(t == "rating" for t in process_forms_types):
+            ratings = []
+            for v in conclusion.answer_list.values():
+                try:
+                    ratings.append(float(v))
+                except ValueError:
+                    pass
+            if ratings:
+                conclusion.mean_rating = sum(ratings) / len(ratings)
+
+        conclusion.save()
+
         return Response({
             'message': 'Answers saved successfully.',
             'process_id': process.id,
-            'answers': created_answers
+            'answers': created_answers,
+            'conclusion': {
+                'answer_count': conclusion.answer_count,
+                'mean_rating': conclusion.mean_rating,
+                'answer_list': conclusion.answer_list
+            }
         }, status=201)
