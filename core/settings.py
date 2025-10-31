@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'conclusion',
     'django.contrib.postgres',
     'rest_framework',
-    'rest_framework_simplejwt'
+    'rest_framework_simplejwt',
+    "graphene_django",
 ]
 
 MIDDLEWARE = [
@@ -156,4 +157,8 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+}
+
+GRAPHENE = {
+    "SCHEMA": "accounts.schema.schema", 
 }
