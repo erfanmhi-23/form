@@ -162,3 +162,10 @@ SIMPLE_JWT = {
 GRAPHENE = {
     "SCHEMA": "accounts.schema.schema", 
 }
+# settings.py
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    # اگه دامنه واقعی داری اضافه کن
+    # "https://example.com",
+]
