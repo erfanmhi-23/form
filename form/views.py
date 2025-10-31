@@ -312,9 +312,55 @@ class AnswerView(APIView):
         # ✅ افزایش view_count پروسس
         process.view_count = models.F('view_count') + 1
         process.save(update_fields=['view_count'])
+        # 🧭 اگر liner فعاله، فرم بعدی رو بده
+        next_form_data = None
+        if process.liner:
+            all_forms = process.forms.order_by('id')
+            answered_form_ids = Answer.objects.filter(process=process).values_list('form_id', flat=True)
 
-        return Response({
+            next_form = next((f for f in all_forms if f.id not in answered_form_ids), None)
+            if next_form:
+                next_form_data = FormSerializer(next_form).data
+            else:
+                next_form_data = 'All questions answered.'
+
+        # پاسخ نهایی
+        response_data = {
             'message': 'Answers saved successfully.',
             'process_id': process.id,
-            'answers': created_answers
-        }, status=201)
+            'answers': created_answers,
+        }
+
+        if next_form_data is not None:
+            response_data['next_form'] = next_form_data
+
+        return Response(response_data, status=201)
+
+class NextFormView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, process_id):
+        try:
+            process = Process.objects.prefetch_related('forms').get(id=process_id)
+        except Process.DoesNotExist:
+            return Response({'error': 'Process not found'}, status=404)
+
+        if not process.liner:
+            forms = process.forms.all()
+            serializer = FormSerializer(forms, many=True)
+            return Response({'forms': serializer.data}, status=200)
+
+        all_forms = process.forms.order_by('id')
+        answered_form_ids = Answer.objects.filter(process=process).values_list('form_id', flat=True)
+
+        next_form = None
+        for form in all_forms:
+            if form.id not in answered_form_ids:
+                next_form = form
+                break
+
+        if not next_form:
+            return Response({'message': 'All questions answered.'}, status=200)
+
+        serializer = FormSerializer(next_form)
+        return Response({'next_form': serializer.data}, status=200)
