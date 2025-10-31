@@ -86,7 +86,14 @@ class Form(models.Model):
 
 
 class Process(models.Model):
-    name = models.CharField(max_length=255)#category 
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='process_category'
+    )
+    name = models.CharField(max_length=255)
     forms = models.ManyToManyField(
         'Form',
         related_name='processes'

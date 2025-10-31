@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions , generics
+from django.db import models
 from .serializers import FormSerializer, CategorySerializer,AnswerSerializer, ProcessSerializer
 from .models import Form,Process,Answer, Category
 
@@ -140,7 +141,7 @@ class AnswerView(APIView):
         }
         """
         process_id = request.data.get('process_id')
-        process_password = request.data.get('process_password')  # ← پسورد پروسس
+        process_password = request.data.get('process_password')
         answers_data = request.data.get('answers', [])
 
         if not process_id:
@@ -151,7 +152,7 @@ class AnswerView(APIView):
         except Process.DoesNotExist:
             return Response({'error': 'Process not found.'}, status=404)
 
-        # 🔐 اگر پروسس پسورد دارد باید کاربر ارسال کند
+        # 🔐 بررسی پسورد پروسس
         if process.password:
             if not process_password:
                 return Response({'error': 'Process password is required.'}, status=400)
@@ -165,10 +166,8 @@ class AnswerView(APIView):
         process_forms = {f.id: f for f in process_forms_qs}
         created_answers = []
 
-        # 🟢 فقط فرم‌های فعال (validation=True)
+        # 🟢 فرم‌های فعال
         active_forms = [f for f in process_forms_qs if f.validation]
-
-        # 🟢 فقط فرم‌های فعال و اجباری
         required_forms = [f for f in active_forms if f.force]
 
         answered_form_ids = [a.get('form_id') for a in answers_data]
@@ -183,7 +182,7 @@ class AnswerView(APIView):
                 'missing_titles': missing_titles
             }, status=400)
 
-        # ✅ ایجاد شماره سوال‌ها
+        # ✅ شماره‌گذاری سوال‌ها
         question_numbers = {}
         counter = 1
         for form in process_forms_qs:
@@ -191,12 +190,12 @@ class AnswerView(APIView):
                 question_numbers[form.id] = counter
                 counter += 1
 
-        # 🟡 بررسی و ذخیره پاسخ‌ها
+        # 🟡 حلقه‌ی ذخیره پاسخ‌ها
         for item in answers_data:
             form_id = item.get('form_id')
             answer_type = item.get('type')
             answer_value = item.get('answer')
-            provided_password = item.get('password')  # ← پسورد فرم
+            provided_password = item.get('password')
 
             form = process_forms.get(form_id)
             if not form:
@@ -204,14 +203,13 @@ class AnswerView(APIView):
                     'error': f'Form {form_id} does not belong to this process.'
                 }, status=400)
 
-            # 🚫 فرم غیرفعال نباید پاسخ داده شود
             if not form.validation:
                 return Response({
                     'error': f'Form \"{form.title}\" is disabled and cannot be answered.',
                     'form_id': form.id
                 }, status=400)
 
-            # 🔐 اگر فرم پسورد دارد، باید پسورد درست وارد شود
+            # 🔐 بررسی پسورد فرم
             if form.password:
                 if not provided_password:
                     return Response({
@@ -265,6 +263,7 @@ class AnswerView(APIView):
                         'form_id': form.id,
                         'invalid_rating': rating_value
                     }, status=400)
+
             elif answer_type == 'text':
                 if not isinstance(answer_value, str):
                     return Response({
@@ -273,7 +272,6 @@ class AnswerView(APIView):
                     }, status=400)
 
                 text_length = len(answer_value.strip())
-
                 if text_length < form.min:
                     return Response({
                         'error': f'Text answer is too short. Minimum length is {form.min} characters.',
@@ -288,7 +286,6 @@ class AnswerView(APIView):
                         'length': text_length
                     }, status=400)
 
-
             # ✅ ذخیره پاسخ
             serializer = AnswerSerializer(data={
                 'form': form.id,
@@ -301,13 +298,20 @@ class AnswerView(APIView):
                 saved_answer = serializer.save()
                 serialized_data = serializer.data
 
-                # اضافه کردن شماره سؤال
                 if form.id in question_numbers:
                     serialized_data['question_number'] = question_numbers[form.id]
 
                 created_answers.append(serialized_data)
+
+                # ✅ افزایش view_count فرم
+                form.view_count = models.F('view_count') + 1
+                form.save(update_fields=['view_count'])
             else:
                 return Response(serializer.errors, status=400)
+
+        # ✅ افزایش view_count پروسس
+        process.view_count = models.F('view_count') + 1
+        process.save(update_fields=['view_count'])
 
         return Response({
             'message': 'Answers saved successfully.',
