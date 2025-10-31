@@ -120,22 +120,27 @@ class ProcessRetrieveAPIView(generics.RetrieveAPIView):
     queryset = Process.objects.all()
     serializer_class = ProcessSerializer
 
+
 class AnswerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         """
-        ثبت پاسخ‌ها برای یک Process (که خودش شامل چند فرم است).
-        ورودی:
+        ثبت پاسخ‌ها برای یک Process.
+        اگر Process یا Form پسورد داشته باشند باید ارسال شوند.
+
+        ورودی نمونه:
         {
             "process_id": 5,
+            "process_password": "xyz123",
             "answers": [
-                {"form_id": 2, "type": "text", "answer": "Blue"},
+                {"form_id": 2, "type": "text", "answer": "Blue", "password": "abc123"},
                 {"form_id": 3, "type": "rating", "answer": 4}
             ]
         }
         """
         process_id = request.data.get('process_id')
+        process_password = request.data.get('process_password')  # ← پسورد پروسس
         answers_data = request.data.get('answers', [])
 
         if not process_id:
@@ -145,33 +150,88 @@ class AnswerView(APIView):
             process = Process.objects.prefetch_related('forms').get(id=process_id)
         except Process.DoesNotExist:
             return Response({'error': 'Process not found.'}, status=404)
-        
+
+        # 🔐 اگر پروسس پسورد دارد باید کاربر ارسال کند
+        if process.password:
+            if not process_password:
+                return Response({'error': 'Process password is required.'}, status=400)
+            if process_password != process.password:
+                return Response({'error': 'Invalid process password.'}, status=403)
+
         if not answers_data:
             return Response({'error': 'answers cannot be empty.'}, status=400)
 
-        process_forms = {f.id: f for f in process.forms.all()}  # dict برای دسترسی سریع
+        process_forms_qs = process.forms.all()
+        process_forms = {f.id: f for f in process_forms_qs}
         created_answers = []
 
+        # 🟢 فقط فرم‌های فعال (validation=True)
+        active_forms = [f for f in process_forms_qs if f.validation]
+
+        # 🟢 فقط فرم‌های فعال و اجباری
+        required_forms = [f for f in active_forms if f.force]
+
+        answered_form_ids = [a.get('form_id') for a in answers_data]
+        missing_required_forms = [
+            f.id for f in required_forms if f.id not in answered_form_ids
+        ]
+        if missing_required_forms:
+            missing_titles = [process_forms[fid].title for fid in missing_required_forms]
+            return Response({
+                'error': 'Some required forms were not answered.',
+                'missing_forms': missing_required_forms,
+                'missing_titles': missing_titles
+            }, status=400)
+
+        # ✅ ایجاد شماره سوال‌ها
+        question_numbers = {}
+        counter = 1
+        for form in process_forms_qs:
+            if form.question_num:
+                question_numbers[form.id] = counter
+                counter += 1
+
+        # 🟡 بررسی و ذخیره پاسخ‌ها
         for item in answers_data:
             form_id = item.get('form_id')
             answer_type = item.get('type')
             answer_value = item.get('answer')
+            provided_password = item.get('password')  # ← پسورد فرم
 
-            # بررسی وجود فرم در پروسس
             form = process_forms.get(form_id)
             if not form:
                 return Response({
                     'error': f'Form {form_id} does not belong to this process.'
                 }, status=400)
 
-            # بررسی نوع پاسخ با نوع فرم
+            # 🚫 فرم غیرفعال نباید پاسخ داده شود
+            if not form.validation:
+                return Response({
+                    'error': f'Form \"{form.title}\" is disabled and cannot be answered.',
+                    'form_id': form.id
+                }, status=400)
+
+            # 🔐 اگر فرم پسورد دارد، باید پسورد درست وارد شود
+            if form.password:
+                if not provided_password:
+                    return Response({
+                        'error': f'Password is required for form \"{form.title}\".',
+                        'form_id': form.id
+                    }, status=400)
+                if provided_password != form.password:
+                    return Response({
+                        'error': f'Invalid password for form \"{form.title}\".',
+                        'form_id': form.id
+                    }, status=403)
+
+            # بررسی نوع پاسخ
             if answer_type != form.type:
                 return Response({
                     'error': f'Type mismatch: Form type is {form.type}, but answer type is {answer_type}.',
                     'form_id': form.id
                 }, status=400)
 
-            # اعتبارسنجی پاسخ‌ها مثل قبل
+            # 🧩 اعتبارسنجی بر اساس نوع
             if answer_type in ['select', 'checkbox']:
                 if isinstance(answer_value, list):
                     invalid_options = [opt for opt in answer_value if opt not in form.options]
@@ -198,16 +258,38 @@ class AnswerView(APIView):
                         'form_id': form.id
                     }, status=400)
 
-                # چک اینکه rating داخل گزینه‌های فرم باشد
-                allowed_options = [int(opt) for opt in form.options]  # تبدیل options به int
+                allowed_options = [int(opt) for opt in form.options]
                 if rating_value not in allowed_options:
                     return Response({
                         'error': f'Invalid rating. Must be one of {allowed_options}.',
                         'form_id': form.id,
                         'invalid_rating': rating_value
                     }, status=400)
+            elif answer_type == 'text':
+                if not isinstance(answer_value, str):
+                    return Response({
+                        'error': 'Answer for text form must be a string.',
+                        'form_id': form.id
+                    }, status=400)
 
-            # ذخیره پاسخ
+                text_length = len(answer_value.strip())
+
+                if text_length < form.min:
+                    return Response({
+                        'error': f'Text answer is too short. Minimum length is {form.min} characters.',
+                        'form_id': form.id,
+                        'length': text_length
+                    }, status=400)
+
+                if text_length > form.max:
+                    return Response({
+                        'error': f'Text answer is too long. Maximum length is {form.max} characters.',
+                        'form_id': form.id,
+                        'length': text_length
+                    }, status=400)
+
+
+            # ✅ ذخیره پاسخ
             serializer = AnswerSerializer(data={
                 'form': form.id,
                 'process': process.id,
@@ -216,8 +298,14 @@ class AnswerView(APIView):
             })
 
             if serializer.is_valid():
-                serializer.save()
-                created_answers.append(serializer.data)
+                saved_answer = serializer.save()
+                serialized_data = serializer.data
+
+                # اضافه کردن شماره سؤال
+                if form.id in question_numbers:
+                    serialized_data['question_number'] = question_numbers[form.id]
+
+                created_answers.append(serialized_data)
             else:
                 return Response(serializer.errors, status=400)
 
