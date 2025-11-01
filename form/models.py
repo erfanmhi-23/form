@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
+from accounts.models import User
+
 
 class Category(models.Model):
     name = models.CharField(max_length=255)
@@ -111,6 +113,7 @@ class Process(models.Model):
 class Answer(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE,related_name='answers')
     form = models.ForeignKey(Form, on_delete=models.CASCADE,related_name='answers')
+    user = models.ForeignKey(User,on_delete=models.CASCADE,related_name='answers')
     type = models.CharField(max_length=255)
     answer = models.CharField(max_length=255)
 

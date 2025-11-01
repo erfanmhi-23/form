@@ -328,12 +328,16 @@ class AnswerView(APIView):
 
         conclusion.save()
 
-        # 🧭 منطق liner: فرم بعدی
+         # فرم بعدی برای نمایش
         next_form_data = None
         if process.liner:
-            all_forms = process.forms.order_by('id')
-            answered_form_ids = Answer.objects.filter(process=process).values_list('form_id', flat=True)
-            next_form = next((f for f in all_forms if f.id not in answered_form_ids), None)
+            # همان فرم بعدی که هنوز پاسخ داده نشده
+            all_forms_ordered = list(process.forms.order_by('id'))
+            answered_form_ids_user = list(
+                Answer.objects.filter(process=process, user=request.user)
+                .values_list('form_id', flat=True)
+            )
+            next_form = next((f for f in all_forms_ordered if f.id not in answered_form_ids_user), None)
             if next_form:
                 next_form_data = FormSerializer(next_form).data
             else:
