@@ -121,8 +121,6 @@ class ProcessRetrieveAPIView(generics.RetrieveAPIView):
 
     queryset = Process.objects.all()
     serializer_class = ProcessSerializer
-
-
 class AnswerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -151,9 +149,11 @@ class AnswerView(APIView):
 
         process_forms_qs = process.forms.all()
         process_forms = {f.id: f for f in process_forms_qs}
-        created_answers = []
 
-        # 🟢 فرم‌های فعال و اجباری
+        # 🔹 شماره سوال‌ها بر اساس ترتیب id فرم‌ها
+        question_numbers = {f.id: idx + 1 for idx, f in enumerate(process_forms_qs.order_by('id'))}
+
+        # 🔹 فرم‌های فعال و اجباری
         active_forms = [f for f in process_forms_qs if f.validation]
         required_forms = [f for f in active_forms if f.force]
 
@@ -169,15 +169,28 @@ class AnswerView(APIView):
                 'missing_titles': missing_titles
             }, status=400)
 
-        # ✅ شماره‌گذاری سوال‌ها
-        question_numbers = {}
-        counter = 1
-        for form in process_forms_qs:
-            if form.question_num:
-                question_numbers[form.id] = counter
-                counter += 1
+        # 🔹 بررسی ترتیب فرم‌ها در حالت liner
+        if process.liner:
+            ordered_forms = list(process_forms_qs.order_by('id'))
+            answered_forms_user = set(
+                Answer.objects.filter(process=process, user=request.user)
+                .values_list('form_id', flat=True)
+            )
+            # فرم‌هایی که در این درخواست جواب داده شده
+            answered_in_request = set([a['form_id'] for a in answers_data])
 
-        # 🟡 حلقه‌ی ذخیره پاسخ‌ها
+            for idx, form in enumerate(ordered_forms):
+                if form.id in answered_in_request:
+                    for prev_form in ordered_forms[:idx]:
+                        if prev_form.id not in answered_forms_user and prev_form.id not in answered_in_request:
+                            return Response({
+                                'error': f'You must answer the previous question "{prev_form.title}" before answering this one.',
+                                'required_previous_form_id': prev_form.id,
+                                'required_previous_form_title': prev_form.title
+                            }, status=400)
+
+        created_answers = []
+
         for item in answers_data:
             form_id = item.get('form_id')
             answer_type = item.get('type')
@@ -186,13 +199,11 @@ class AnswerView(APIView):
 
             form = process_forms.get(form_id)
             if not form:
-                return Response({
-                    'error': f'Form {form_id} does not belong to this process.'
-                }, status=400)
+                return Response({'error': f'Form {form_id} does not belong to this process.'}, status=400)
 
             if not form.validation:
                 return Response({
-                    'error': f'Form \"{form.title}\" is disabled and cannot be answered.',
+                    'error': f'Form "{form.title}" is disabled and cannot be answered.',
                     'form_id': form.id
                 }, status=400)
 
@@ -200,23 +211,23 @@ class AnswerView(APIView):
             if form.password:
                 if not provided_password:
                     return Response({
-                        'error': f'Password is required for form \"{form.title}\".',
+                        'error': f'Password is required for form "{form.title}".',
                         'form_id': form.id
                     }, status=400)
                 if provided_password != form.password:
                     return Response({
-                        'error': f'Invalid password for form \"{form.title}\".',
+                        'error': f'Invalid password for form "{form.title}".',
                         'form_id': form.id
                     }, status=403)
 
-            # بررسی نوع پاسخ
+            # 🔹 اعتبارسنجی نوع پاسخ
             if answer_type != form.type:
                 return Response({
                     'error': f'Type mismatch: Form type is {form.type}, but answer type is {answer_type}.',
                     'form_id': form.id
                 }, status=400)
 
-            # 🧩 اعتبارسنجی بر اساس نوع
+            # 🔹 اعتبارسنجی بر اساس نوع پاسخ
             if answer_type in ['select', 'checkbox']:
                 if isinstance(answer_value, list):
                     invalid_options = [opt for opt in answer_value if opt not in form.options]
@@ -225,7 +236,7 @@ class AnswerView(APIView):
                             'error': 'Invalid option(s) selected.',
                             'invalid_options': invalid_options,
                             'form_id': form.id,
-                            'allowed_options': form.options  
+                            'allowed_options': form.options
                         }, status=400)
                 else:
                     if answer_value not in form.options:
@@ -233,7 +244,7 @@ class AnswerView(APIView):
                             'error': 'Invalid option selected.',
                             'invalid_option': answer_value,
                             'form_id': form.id,
-                            'allowed_options': form.options  
+                            'allowed_options': form.options
                         }, status=400)
 
             elif answer_type == 'rating':
@@ -244,7 +255,6 @@ class AnswerView(APIView):
                         'error': 'Rating must be an integer.',
                         'form_id': form.id
                     }, status=400)
-
                 allowed_options = [int(opt) for opt in form.options]
                 if rating_value not in allowed_options:
                     return Response({
@@ -259,16 +269,14 @@ class AnswerView(APIView):
                         'error': 'Answer for text form must be a string.',
                         'form_id': form.id
                     }, status=400)
-
                 text_length = len(answer_value.strip())
-                if text_length < form.min:
+                if form.min is not None and text_length < form.min:
                     return Response({
                         'error': f'Text answer is too short. Minimum length is {form.min} characters.',
                         'form_id': form.id,
                         'length': text_length
                     }, status=400)
-
-                if text_length > form.max:
+                if form.max is not None and text_length > form.max:
                     return Response({
                         'error': f'Text answer is too long. Maximum length is {form.max} characters.',
                         'form_id': form.id,
@@ -280,19 +288,19 @@ class AnswerView(APIView):
                 'form': form.id,
                 'process': process.id,
                 'type': answer_type,
-                'answer': answer_value
+                'answer': answer_value,
+                'user': request.user.id
             })
+            serializer.is_valid(raise_exception=True)
+            saved_answer = serializer.save()
+            serialized_data = serializer.data
+            if form.id in question_numbers:
+                serialized_data['question_number'] = question_numbers[form.id]
+            created_answers.append(serialized_data)
 
-            if serializer.is_valid():
-                saved_answer = serializer.save()
-                serialized_data = serializer.data
-                if form.id in question_numbers:
-                    serialized_data['question_number'] = question_numbers[form.id]
-                created_answers.append(serialized_data)
-                form.view_count = models.F('view_count') + 1
-                form.save(update_fields=['view_count'])
-            else:
-                return Response(serializer.errors, status=400)
+            # افزایش view_count فرم
+            form.view_count = models.F('view_count') + 1
+            form.save(update_fields=['view_count'])
 
         # ✅ افزایش view_count پروسس
         process.view_count = models.F('view_count') + 1
@@ -304,7 +312,7 @@ class AnswerView(APIView):
             user=user,
             process=process,
             view_count=1,
-            answer_count=0,
+            answer_count=len(created_answers),
             answer_list={}
         )
 
@@ -314,7 +322,6 @@ class AnswerView(APIView):
             if form_obj and form_obj.type != "text":
                 conclusion.answer_list[str(form_id)] = ans["answer"]
 
-        conclusion.answer_count = len(conclusion.answer_list)
         process_forms_types = [f.type for f in process.forms.all()]
         if all(t == "rating" for t in process_forms_types):
             ratings = []
@@ -328,23 +335,6 @@ class AnswerView(APIView):
 
         conclusion.save()
 
-         # فرم بعدی برای نمایش
-        next_form_data = None
-        if process.liner:
-            # همان فرم بعدی که هنوز پاسخ داده نشده
-            all_forms_ordered = list(process.forms.order_by('id'))
-            answered_form_ids_user = list(
-                Answer.objects.filter(process=process, user=request.user)
-                .values_list('form_id', flat=True)
-            )
-            next_form = next((f for f in all_forms_ordered if f.id not in answered_form_ids_user), None)
-            if next_form:
-                next_form_data = FormSerializer(next_form).data
-            else:
-                next_form_data = 'All questions answered.'
-        else:
-            next_form_data = FormSerializer(process.forms.all(), many=True).data
-
         response_data = {
             'message': 'Answers saved successfully.',
             'process_id': process.id,
@@ -353,8 +343,7 @@ class AnswerView(APIView):
                 'answer_count': conclusion.answer_count,
                 'mean_rating': conclusion.mean_rating,
                 'answer_list': conclusion.answer_list
-            },
-            'next_form': next_form_data
+            }
         }
 
         return Response(response_data, status=201)

@@ -108,7 +108,7 @@ class Process(models.Model):
         db_table = 'process'
 
     def __str__(self):
-        return f"Process for {self.forms}"
+        return f"Process for {self.name}"
     
 class Answer(models.Model):
     process = models.ForeignKey(Process, on_delete=models.CASCADE,related_name='answers')

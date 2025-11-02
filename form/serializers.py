@@ -34,4 +34,4 @@ class AnswerSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Answer
-        fields = ['id', 'process', 'form', 'type', 'answer']
+        fields = ['id', 'process', 'form', 'type', 'answer','user']
