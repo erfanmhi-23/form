@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions , generics
 from django.db import models
-from .serializers import FormSerializer, CategorySerializer,AnswerSerializer, ProcessSerializer
+from .serializers import FormSerializer, CategorySerializer,AnswerSerializer, ProcessSerializer , ProcessForm
 from .models import Form,Process, Category,Answer
 from conclusion.models import Conclusion
 
@@ -171,23 +171,28 @@ class AnswerView(APIView):
 
         # 🔹 بررسی ترتیب فرم‌ها در حالت liner
         if process.liner:
-            ordered_forms = list(process_forms_qs.order_by('id'))
-            answered_forms_user = set(
-                Answer.objects.filter(process=process, user=request.user)
-                .values_list('form_id', flat=True)
-            )
-            # فرم‌هایی که در این درخواست جواب داده شده
+            # فرم‌ها به ترتیب order
+            ordered_forms = list(process.forms.through.objects.filter(process=process).order_by('order').select_related('form'))
+            ordered_form_ids = [pf.form.id for pf in ordered_forms]
+
+            # فرم‌هایی که کاربر قبلاً پاسخ داده
+            answered_form_ids = set(Answer.objects.filter(process=process, user=request.user).values_list('form_id', flat=True))
+
+            # فرم‌هایی که در همین درخواست جواب داده شده
             answered_in_request = set([a['form_id'] for a in answers_data])
 
-            for idx, form in enumerate(ordered_forms):
-                if form.id in answered_in_request:
-                    for prev_form in ordered_forms[:idx]:
-                        if prev_form.id not in answered_forms_user and prev_form.id not in answered_in_request:
+            for idx, form_id in enumerate(ordered_form_ids):
+                if form_id in answered_in_request:
+                    # بررسی اینکه فرم‌های قبلی پاسخ داده شده باشند
+                    for prev_form_id in ordered_form_ids[:idx]:
+                        if prev_form_id not in answered_form_ids and prev_form_id not in answered_in_request:
+                            prev_form = ProcessForm.objects.get(process=process, form_id=prev_form_id).form
                             return Response({
-                                'error': f'You must answer the previous question "{prev_form.title}" before answering this one.',
+                                'error': f'You must answer the previous question "{prev_form.title}" before this one.',
                                 'required_previous_form_id': prev_form.id,
                                 'required_previous_form_title': prev_form.title
                             }, status=400)
+
 
         created_answers = []
 

@@ -14,13 +14,7 @@ class Category(models.Model):
         return self.name
 
 class Form(models.Model):
-    category = models.ForeignKey(
-        Category,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='forms'
-    )
+    category = models.ForeignKey(Category,on_delete=models.SET_NULL,null=True,blank=True,related_name='forms')
     title = models.CharField(max_length=255)
     question = models.CharField(max_length=255)
     description = models.CharField(max_length=255,blank=True)
@@ -88,18 +82,9 @@ class Form(models.Model):
 
 
 class Process(models.Model):
-    category = models.ForeignKey(
-        Category,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='process_category'
-    )
+    category = models.ForeignKey(Category,on_delete=models.SET_NULL,null=True,blank=True,related_name='process_category')
     name = models.CharField(max_length=255)
-    forms = models.ManyToManyField(
-        'Form',
-        related_name='processes'
-    )
+    forms = models.ManyToManyField('Form',through='ProcessForm',related_name='processes')
     liner = models.BooleanField(default=False)
     password = models.CharField(max_length=255, blank=True, null=True)
     view_count = models.IntegerField(default=0)
@@ -123,3 +108,12 @@ class Answer(models.Model):
     def __str__(self):
         return self.answer
   
+
+class ProcessForm(models.Model):
+    process = models.ForeignKey(Process, on_delete=models.CASCADE)
+    form = models.ForeignKey(Form, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+        unique_together = ('process', 'form')

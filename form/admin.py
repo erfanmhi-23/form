@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Category, Form, Process, Answer
+from .models import Category, Form, Process, Answer,ProcessForm
+
+class ProcessFormInline(admin.TabularInline):
+    model = ProcessForm
+    extra = 1
+    autocomplete_fields = ['form']
+    ordering = ['order']
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -18,9 +24,11 @@ class ProcessAdmin(admin.ModelAdmin):
     list_display = ('id', 'liner', 'view_count')
     search_fields = ('form__title',)
     list_filter = ('liner',)
+    inlines = [ProcessFormInline]
 
 @admin.register(Answer)
 class AnswerAdmin(admin.ModelAdmin):
     list_display  = ('id', 'form', 'process', 'type', 'answer')
     search_fields = ('answer', 'type', 'form__title')
     list_filter   = ('type', 'form')
+
