@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'conclusion',
     'django.contrib.postgres',
     'rest_framework',
-    'rest_framework_simplejwt'
+    'rest_framework_simplejwt',
+    "graphene_django",
 ]
 
 MIDDLEWARE = [
@@ -157,3 +158,14 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
+
+GRAPHENE = {
+    "SCHEMA": "accounts.schema.schema", 
+}
+# settings.py
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    # اگه دامنه واقعی داری اضافه کن
+    # "https://example.com",
+]

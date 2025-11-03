@@ -21,7 +21,7 @@ def update_form_report(sender, instance, created, **kwargs):
                 summary[q_id] = {"type": ans.type, "count": 0}
                 if ans.type == "rating":
                     summary[q_id]["total"] = 0
-                elif ans.type == "select":
+                elif ans.type in ["select", "checkbox"]:
                     summary[q_id]["options"] = {}
 
             summary[q_id]["count"] += 1
@@ -30,6 +30,9 @@ def update_form_report(sender, instance, created, **kwargs):
                 summary[q_id]["total"] += int(ans.answer)
             elif ans.type == "select":
                 summary[q_id]["options"][ans.answer] = summary[q_id]["options"].get(ans.answer, 0) + 1
+            elif ans.type == "checkbox":
+                for opt in ans.answer:
+                    summary[q_id]["options"][opt] = summary[q_id]["options"].get(opt, 0) + 1
 
         for q_id, data in summary.items():
             if data["type"] == "rating" and data["count"] > 0:
