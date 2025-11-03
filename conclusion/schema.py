@@ -10,7 +10,7 @@ class ReportSubscriptionType(DjangoObjectType):
 class FormReportType(DjangoObjectType):
     class Meta:
         model = Conclusion
-        fields = ("id", "form", "view_count", "answer_count", "summary", "updated_at")
+        fields = ("id", "process", "view_count", "answer_count", "answer_list", "updated_at")
 
 class Query(graphene.ObjectType):
     all_subscriptions = graphene.List(ReportSubscriptionType)

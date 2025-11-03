@@ -4,7 +4,7 @@ from .models import Conclusion,ReportSubscription
 class FormReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conclusion
-        fields = ['form', 'view_count', 'answer_count', 'summary', 'updated_at']
+        fields = ['process', 'view_count', 'answer_count', 'answer_list', 'updated_at']
 
 class ReportSubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
