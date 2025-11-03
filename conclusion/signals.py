@@ -1,6 +1,6 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Answer, FormReport
+from .models import Answer, Conclusion
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
@@ -8,7 +8,7 @@ from asgiref.sync import async_to_sync
 def update_form_report(sender, instance, created, **kwargs):
     if created:
         form = instance.form
-        report, _ = FormReport.objects.get_or_create(form=form)
+        report, _ = Conclusion.objects.get_or_create(form=form)
 
         report.answer_count = form.answers.count()
         report.view_count = form.view_count

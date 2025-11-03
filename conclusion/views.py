@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import permissions, status
-from .serializers import FormReportSerializer, ReportSubscriptionSerializer
-from .models import FormReport, ReportSubscription, Form
+from rest_framework import permissions,status
+from .serializers import FormReportSerializer
+from .models import ReportSubscription, Form,Conclusion
 from django.core.mail import send_mail
 from form.models import Category, Form, Process, Answer
 
@@ -15,8 +15,8 @@ class FormReportView(APIView):
             return Response({"detail": "Not authorized"}, status=403)
 
         try:
-            report = FormReport.objects.get(form_id=form_id)
-        except FormReport.DoesNotExist:
+            report = Conclusion.objects.get(form_id=form_id)
+        except Conclusion.DoesNotExist:
             return Response({"detail": "Report not found"}, status=404)
 
         serializer = FormReportSerializer(report)
@@ -62,11 +62,11 @@ class SendFormReportEmailAPIView(APIView):
 
         try:
             form = Form.objects.get(id=form_id)
-            report = FormReport.objects.get(form=form)
+            report = Conclusion.objects.get(form=form)
         except Form.DoesNotExist:
-            return Response({"detail": "Form not found"}, status=404)
-        except FormReport.DoesNotExist:
-            return Response({"detail": "Report not found"}, status=404)
+            return Response({"detail": "فرم پیدا نشد."}, status=404)
+        except Conclusion.DoesNotExist:
+            return Response({"detail": "گزارش برای این فرم موجود نیست."}, status=404)
 
         summary_text = ""
         for q_id, data in report.summary.items():

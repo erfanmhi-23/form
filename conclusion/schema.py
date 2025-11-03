@@ -1,6 +1,6 @@
 import graphene
 from graphene_django import DjangoObjectType
-from .models import ReportSubscription, FormReport
+from .models import ReportSubscription, Conclusion
 
 class ReportSubscriptionType(DjangoObjectType):
     class Meta:
@@ -9,7 +9,7 @@ class ReportSubscriptionType(DjangoObjectType):
 
 class FormReportType(DjangoObjectType):
     class Meta:
-        model = FormReport
+        model = Conclusion
         fields = ("id", "form", "view_count", "answer_count", "summary", "updated_at")
 
 class Query(graphene.ObjectType):
@@ -20,7 +20,7 @@ class Query(graphene.ObjectType):
         return ReportSubscription.objects.all()
 
     def resolve_all_form_reports(root, info):
-        return FormReport.objects.all()
+        return Conclusion.objects.all()
 
 class Mutation(graphene.ObjectType):
     pass 

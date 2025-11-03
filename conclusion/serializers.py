@@ -1,9 +1,9 @@
 from rest_framework import serializers
-from .models import FormReport, ReportSubscription
+from .models import Conclusion,ReportSubscription
 
 class FormReportSerializer(serializers.ModelSerializer):
     class Meta:
-        model = FormReport
+        model = Conclusion
         fields = ['form', 'view_count', 'answer_count', 'summary', 'updated_at']
 
 class ReportSubscriptionSerializer(serializers.ModelSerializer):

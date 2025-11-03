@@ -26,6 +26,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('auth/', include('accounts.urls')),
     path('form/',include('form.urls')),
+    path('report/', include('conclusion.urls')),
+
 
     path('graphql/accounts/', GraphQLView.as_view(graphiql=True, schema=accounts_schema)),
     path('graphql/form/', GraphQLView.as_view(graphiql=True, schema=forms_schema)),
