@@ -168,3 +168,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8080",
 
 ]
+import os
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
