@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import FormReport,ReportSubscription
+from .models import FormReport, ReportSubscription
 
 class FormReportSerializer(serializers.ModelSerializer):
     class Meta:

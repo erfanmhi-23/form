@@ -50,3 +50,9 @@ Django>=4.2,<5.0
 djangorestframework
 djangorestframework-simplejwt
 psycopg2-binary
+gunicorn
+redis
+django-redis
+channels>=4.1
+channels_redis>=4.1
+graphene-django>=3.2
