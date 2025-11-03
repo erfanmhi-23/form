@@ -121,6 +121,8 @@ class ProcessRetrieveAPIView(generics.RetrieveAPIView):
 
     queryset = Process.objects.all()
     serializer_class = ProcessSerializer
+
+
 class AnswerView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -171,27 +173,39 @@ class AnswerView(APIView):
 
         # 🔹 بررسی ترتیب فرم‌ها در حالت liner
         if process.liner:
-            # فرم‌ها به ترتیب order
-            ordered_forms = list(process.forms.through.objects.filter(process=process).order_by('order').select_related('form'))
+            # فرم‌ها بر اساس order مرتب می‌شوند
+            ordered_forms = list(
+                ProcessForm.objects.filter(process=process)
+                .order_by('order')
+                .select_related('form')
+            )
             ordered_form_ids = [pf.form.id for pf in ordered_forms]
+            answered_form_ids = [a.get('form_id') for a in answers_data]
 
-            # فرم‌هایی که کاربر قبلاً پاسخ داده
-            answered_form_ids = set(Answer.objects.filter(process=process, user=request.user).values_list('form_id', flat=True))
+            # ۱. بررسی اینکه همه‌ی فرم‌ها پاسخ داده شده‌اند
+            if set(answered_form_ids) != set(ordered_form_ids):
+                missing_ids = [fid for fid in ordered_form_ids if fid not in answered_form_ids]
+                missing_titles = [
+                    ProcessForm.objects.get(process=process, form_id=fid).form.title
+                    for fid in missing_ids
+                ]
+                return Response({
+                    'error': 'You must answer all forms in this process because it is linear.',
+                    'missing_forms': missing_ids,
+                    'missing_titles': missing_titles
+                }, status=400)
 
-            # فرم‌هایی که در همین درخواست جواب داده شده
-            answered_in_request = set([a['form_id'] for a in answers_data])
-
-            for idx, form_id in enumerate(ordered_form_ids):
-                if form_id in answered_in_request:
-                    # بررسی اینکه فرم‌های قبلی پاسخ داده شده باشند
-                    for prev_form_id in ordered_form_ids[:idx]:
-                        if prev_form_id not in answered_form_ids and prev_form_id not in answered_in_request:
-                            prev_form = ProcessForm.objects.get(process=process, form_id=prev_form_id).form
-                            return Response({
-                                'error': f'You must answer the previous question "{prev_form.title}" before this one.',
-                                'required_previous_form_id': prev_form.id,
-                                'required_previous_form_title': prev_form.title
-                            }, status=400)
+            # ۲. بررسی ترتیب پاسخ‌ها
+            # فرم‌ها باید دقیقاً به ترتیب order ارسال شوند
+            for idx, form_id in enumerate(answered_form_ids):
+                expected_form_id = ordered_form_ids[idx]
+                if form_id != expected_form_id:
+                    expected_form = ProcessForm.objects.get(process=process, form_id=expected_form_id).form
+                    return Response({
+                        'error': f'Answers must be in order. You should answer "{expected_form.title}" before others.',
+                        'expected_form_id': expected_form.id,
+                        'expected_form_title': expected_form.title
+                    }, status=400)
 
 
         created_answers = []
@@ -299,7 +313,7 @@ class AnswerView(APIView):
             serializer.is_valid(raise_exception=True)
             saved_answer = serializer.save()
             serialized_data = serializer.data
-            if form.id in question_numbers:
+            if (form.question_num or process.liner) and form.id in question_numbers:
                 serialized_data['question_number'] = question_numbers[form.id]
             created_answers.append(serialized_data)
 
