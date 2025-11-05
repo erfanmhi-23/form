@@ -170,3 +170,6 @@ CSRF_TRUSTED_ORIGINS = [
 import os
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+REDIS_HOST = "redis"
+REDIS_PORT = 6379

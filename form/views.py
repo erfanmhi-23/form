@@ -70,13 +70,31 @@ class FormUpdateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-#category
+#category, redis
+from django.conf import settings
+import redis
+import json
+
+r = redis.StrictRedis(
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    db=0,
+    decode_responses=True)
+
 class CategoryListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        cache_key = "categories:list"
+        data = r.get(cache_key)
+        
+        if data:
+            return Response(json.loads(data), status=status.HTTP_200_OK)
+
         categories = Category.objects.all()
         serializer = CategorySerializer(categories, many=True)
+        
+        r.set(cache_key, json.dumps(serializer.data), ex=60*5)
         return Response(serializer.data)
 
     def post(self, request):
