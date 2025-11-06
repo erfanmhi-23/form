@@ -96,7 +96,7 @@ body requirements:
 method:delete
 ---------------
 17.processes list forms
-url:http://localhost:8080/form/forms/processes/
+url:http://localhost:8080/form/processes/
 body requirements:name, list[form_ids]
 +authorization
 method:post

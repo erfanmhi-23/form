@@ -60,20 +60,43 @@ class ProcessSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        # form_ids را از validated_data جدا می‌کنیم چون فیلد مدل نیست
         form_ids = validated_data.pop('form_ids', [])
         process = Process.objects.create(**validated_data)
 
-        # اگر رابطه ManyToMany داری
+        # اگر فرم‌ها وجود داشتند
         if form_ids:
-            process.forms.set(form_ids)
+            # اگر پروسس خطی است، برای هر فرم order تنظیم می‌کنیم
+            if process.liner:
+                for idx, form in enumerate(form_ids, start=1):
+                    ProcessForm.objects.create(
+                        process=process,
+                        form=form,
+                        order=idx  # ترتیب بر اساس ترتیب ارسال شده در form_ids
+                    )
+            else:
+                # اگر پروسس خطی نیست، فقط ارتباط برقرار می‌کنیم بدون order خاص
+                for form in form_ids:
+                    ProcessForm.objects.create(process=process, form=form)
 
         return process
 
     def update(self, instance, validated_data):
         form_ids = validated_data.pop('form_ids', [])
         instance = super().update(instance, validated_data)
-        if form_ids:
-            instance.forms.set(form_ids)
-        return instance
 
+        if form_ids:
+            # ابتدا روابط قبلی را حذف می‌کنیم
+            instance.processform_set.all().delete()
+
+            if instance.liner:
+                for idx, form in enumerate(form_ids, start=1):
+                    ProcessForm.objects.create(
+                        process=instance,
+                        form=form,
+                        order=idx
+                    )
+            else:
+                for form in form_ids:
+                    ProcessForm.objects.create(process=instance, form=form)
+
+        return instance
