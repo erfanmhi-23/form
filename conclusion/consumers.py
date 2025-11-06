@@ -8,8 +8,8 @@ class FormReportConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        self.form_id = self.scope['url_route']['kwargs']['form_id']
-        self.group_name = f"form_report_{self.form_id}"
+        self.process_id = self.scope['url_route']['kwargs']['process_id']
+        self.group_name = f"form_report_{self.process_id}"
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
