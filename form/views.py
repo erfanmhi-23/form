@@ -5,14 +5,35 @@ from django.db import models
 from .serializers import FormSerializer, CategorySerializer,AnswerSerializer, ProcessSerializer , ProcessForm
 from .models import Form,Process, Category,Answer
 from conclusion.models import Conclusion
+import redis
+import json
+from django.conf import settings
+
+r = redis.StrictRedis(
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    db=0,
+    decode_responses=True
+)
 
 
 class FormListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request):
+        cache_key = "forms:list"
+        data = r.get(cache_key)
+
+        if data:
+            forms = json.loads(data)
+            return Response(forms, status=status.HTTP_200_OK)
+
         forms = Form.objects.all()
         serializer = FormSerializer(forms, many=True)
-        return Response(serializer.data)
+
+        r.set(cache_key, json.dumps(serializer.data), ex=60*5)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         serializer = FormSerializer(data=request.data)
@@ -68,18 +89,6 @@ class FormUpdateView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-#category, redis
-from django.conf import settings
-import redis
-import json
-
-r = redis.StrictRedis(
-    host=settings.REDIS_HOST,
-    port=settings.REDIS_PORT,
-    db=0,
-    decode_responses=True)
 
 class CategoryListView(APIView):
     permission_classes = [permissions.IsAuthenticated]
