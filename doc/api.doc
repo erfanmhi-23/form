@@ -72,13 +72,13 @@ body requirements:[]
 method:get
 ---------------
 13.form detail
-url:http://localhost:8080/form/id/detail
+url:http://localhost:8080/form/forms/id/detail
 body requirements:[]
 +authorization
 method:get
 ---------------
 14.update form(complete)
-url:http://localhost:8080/form/id/update/
+url:http://localhost:8080/form/forms/id/update/
 body requirements:title,question,validation,max,type
 +authorization
 method:put
@@ -96,19 +96,19 @@ body requirements:
 method:delete
 ---------------
 17.processes list forms
-url:http://localhost:8080/form/processes/
+url:http://localhost:8080/form/forms/processes/
 body requirements:name, list[form_ids]
 +authorization
 method:post
 ---------------
-18.show all processes
+18.show,edit processes
 url:http://localhost:8080/form/processes/id/
 body requirements:
 +authorization
-method:get
+method:get,pach,put
 ---------------
 19.answers
-url:http://localhost:8080/form/forms/answers
+url:http://localhost:8080/form/forms/answers/
 body requirements:process_id , answers{form_id , type , answer , #password}
 method:post
 ---------------

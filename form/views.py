@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions , generics
+from rest_framework.exceptions import NotFound
 from django.db import models
 from .serializers import FormSerializer, CategorySerializer,AnswerSerializer, ProcessSerializer , ProcessForm
 from .models import Form,Process, Category,Answer
@@ -116,11 +117,27 @@ class ProcessListCreateAPIView(generics.ListCreateAPIView):
         return Response(ProcessSerializer(process).data, status=status.HTTP_201_CREATED)
 
 
-class ProcessRetrieveAPIView(generics.RetrieveAPIView):
+class ProcessRetrieveAPIView(generics.RetrieveUpdateAPIView):
+    """
+    View برای دریافت (GET) و ویرایش (PUT/PATCH) یک Process خاص.
+    """
     permission_classes = [permissions.IsAuthenticated]
-
     queryset = Process.objects.all()
     serializer_class = ProcessSerializer
+
+    def update(self, request, *args, **kwargs):
+        """ویرایش کامل (PUT) یا جزئی (PATCH) یک Process"""
+        partial = kwargs.pop('partial', False)
+        try:
+            process = self.get_object()
+        except Process.DoesNotExist:
+            raise NotFound("Process not found")
+
+        serializer = self.get_serializer(process, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class AnswerView(APIView):

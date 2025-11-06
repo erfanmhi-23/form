@@ -19,15 +19,6 @@ class FormSerializer(serializers.ModelSerializer):
         instance.clean()
         return data
 
-class ProcessSerializer(serializers.ModelSerializer):
-    forms = FormSerializer(many=True, read_only=True)  
-    form_ids = serializers.PrimaryKeyRelatedField(
-        many=True, queryset=Form.objects.all(), write_only=True, source='forms'
-    ) 
-
-    class Meta:
-        model = Process
-        fields = ['id', 'name', 'liner', 'password', 'view_count', 'forms', 'form_ids']
 
 class AnswerSerializer(serializers.ModelSerializer):
     answer = serializers.JSONField()
@@ -46,17 +37,14 @@ class ProcessFormSerializer(serializers.ModelSerializer):
         fields = ['id', 'process', 'form', 'order', 'form_title', 'form_type', 'form_options']
 
 class ProcessSerializer(serializers.ModelSerializer):
-    # فرم‌ها با اطلاعات کامل و order
-    process_forms = serializers.SerializerMethodField()
-    
-    # فقط شناسه فرم‌ها برای ایجاد/ویرایش
+    process_forms = serializers.SerializerMethodField(read_only=True)
     form_ids = serializers.PrimaryKeyRelatedField(
         many=True, queryset=Form.objects.all(), write_only=True
     )
 
     class Meta:
         model = Process
-        fields = ['id', 'name', 'liner', 'password', 'view_count', 'form_ids']
+        fields = ['id', 'name', 'liner', 'password', 'view_count', 'form_ids', 'process_forms']
 
     def get_process_forms(self, obj):
         process_forms_qs = obj.processform_set.select_related('form').order_by('order')
@@ -71,12 +59,21 @@ class ProcessSerializer(serializers.ModelSerializer):
             for pf in process_forms_qs
         ]
 
+    def create(self, validated_data):
+        # form_ids را از validated_data جدا می‌کنیم چون فیلد مدل نیست
+        form_ids = validated_data.pop('form_ids', [])
+        process = Process.objects.create(**validated_data)
+
+        # اگر رابطه ManyToMany داری
+        if form_ids:
+            process.forms.set(form_ids)
+
+        return process
+
     def update(self, instance, validated_data):
         form_ids = validated_data.pop('form_ids', [])
         instance = super().update(instance, validated_data)
-
         if form_ids:
-            # پاک کردن فرم‌های قدیمی و اضافه کردن فرم‌های جدید
             instance.forms.set(form_ids)
-            # اگر میخوای order را حفظ یا reset کنی، اینجا می‌توان مدیریت کرد
         return instance
+
