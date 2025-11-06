@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 from datetime import timedelta
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +21,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-9d_!henl+=c0n*jd337s7sfb#&krc%01k&)7jy=www+m59wl+5'
+SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-replace-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 
 
 # Application definition
@@ -82,15 +83,15 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'form_db',
-        'USER': 'postgres',
-        'PASSWORD' : 'postgres',
-        'HOST':'db',
-        'PORT':5432,
-    
+        'ENGINE': os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
+        'NAME': os.environ.get("DB_NAME", "form_db"),
+        'USER': os.environ.get("DB_USER", "postgres"),
+        'PASSWORD': os.environ.get("DB_PASSWORD", "postgres"),
+        'HOST': os.environ.get("DB_HOST", "db"),
+        'PORT': int(os.environ.get("DB_PORT", 5432)),
     }
 }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -142,8 +143,8 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_USE_TLS = True
 EMAIL_PORT = 587
-EMAIL_HOST_USER = 'djangop065@gmail.com'
-EMAIL_HOST_PASSWORD = 'zjjj mxcg fsgz rybl'
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "example@gmail.com")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
@@ -167,9 +168,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8080",
 
 ]
-import os
+
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
-REDIS_HOST = "redis"
-REDIS_PORT = 6379
+REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
+REDIS_PORT = int(os.environ.get("REDIS_PORT", 6379))

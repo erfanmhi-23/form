@@ -132,6 +132,68 @@ url:
 body requirements:
 method:
 ---------------
+graphql:account
+{
+  allUsers {
+    id
+    username
+    email
+  }
+}
+---------------
+graphql:form
+allForms {
+    id
+    title
+    question
+    description
+    type
+    options
+    category {
+      id
+      name
+    }
+  }
 
+{
+  answersByUser(userId: 2) {
+    id
+    process {
+      name
+    }
+    form {
+      title
+    }
+    answer
+  }
+}
 
+{
+  processById(id: 1) {
+    id
+    name
+    liner
+    processForms {
+      order
+      form {
+        title
+        question
+      }
+    }
+  }
+}
 
+{
+  allCategories {
+    id
+    name
+    description
+    forms {
+      id
+      title
+      type
+    }
+  }
+}
+---------------
+graphql:conclusion
