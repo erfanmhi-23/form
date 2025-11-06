@@ -1,55 +1,92 @@
 import graphene
 from graphene_django import DjangoObjectType
-from .models import Category, Form, Process, Answer
+from .models import Category, Form, Process, Answer, ProcessForm
+from accounts.models import User
+
+
+# ==== Object Types ====
 
 class CategoryType(DjangoObjectType):
     class Meta:
         model = Category
-        fields = ("id", "name", "description", "create", "update", "forms")
+        fields = "__all__"
+
 
 class FormType(DjangoObjectType):
     class Meta:
         model = Form
-        fields = ("id", "title", "question", "description", "type", "options", "category", "processes", "answers")
+        fields = "__all__"
+
+
+class ProcessFormType(DjangoObjectType):
+    class Meta:
+        model = ProcessForm
+        fields = "__all__"
+
 
 class ProcessType(DjangoObjectType):
     class Meta:
         model = Process
-        fields = ("id", "name", "forms", "liner", "password", "view_count", "answers")
+        fields = "__all__"
+
+    # برای نمایش جزئیات Formها درون Process
+    process_forms = graphene.List(ProcessFormType)
+
+    def resolve_process_forms(self, info):
+        return self.processform_set.all().order_by("order")
+
 
 class AnswerType(DjangoObjectType):
     class Meta:
         model = Answer
-        fields = ("id", "process", "form", "type", "answer")
+        fields = "__all__"
+
+
+# ==== Query ====
 
 class Query(graphene.ObjectType):
+    # Category
     all_categories = graphene.List(CategoryType)
-    all_forms = graphene.List(FormType)
-    all_processes = graphene.List(ProcessType)
-    all_answers = graphene.List(AnswerType)
+    category_by_id = graphene.Field(CategoryType, id=graphene.Int(required=True))
 
+    # Form
+    all_forms = graphene.List(FormType)
+    form_by_id = graphene.Field(FormType, id=graphene.Int(required=True))
+
+    # Process
+    all_processes = graphene.List(ProcessType)
+    process_by_id = graphene.Field(ProcessType, id=graphene.Int(required=True))
+
+    # Answer
+    all_answers = graphene.List(AnswerType)
+    answers_by_user = graphene.List(AnswerType, user_id=graphene.Int(required=True))
+
+    # === Resolvers ===
     def resolve_all_categories(root, info):
         return Category.objects.all()
+
+    def resolve_category_by_id(root, info, id):
+        return Category.objects.get(pk=id)
+
     def resolve_all_forms(root, info):
         return Form.objects.all()
+
+    def resolve_form_by_id(root, info, id):
+        return Form.objects.get(pk=id)
+
     def resolve_all_processes(root, info):
         return Process.objects.all()
+
+    def resolve_process_by_id(root, info, id):
+        return Process.objects.get(pk=id)
+
     def resolve_all_answers(root, info):
         return Answer.objects.all()
 
-class CreateCategory(graphene.Mutation):
-    category = graphene.Field(CategoryType)
+    def resolve_answers_by_user(root, info, user_id):
+        return Answer.objects.filter(user_id=user_id)
 
-    class Arguments:
-        name = graphene.String(required=True)
-        description = graphene.String(required=True)
 
-    def mutate(self, info, name, description):
-        category = Category(name=name, description=description)
-        category.save()
-        return CreateCategory(category=category)
+# ==== Schema ====
 
-class Mutation(graphene.ObjectType):
-    create_category = CreateCategory.Field()
-
-schema = graphene.Schema(query=Query, mutation=Mutation)
+schema = graphene.Schema(query=Query)
