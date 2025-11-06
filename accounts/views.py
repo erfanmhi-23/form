@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.contrib.auth import get_user_model, login, logout ,update_session_auth_hash 
 from accounts.models import EmailOTP
-from accounts.serializers import EmailSerializer, OTPVerifySerializer,SignupSerializer, UserSerializer,DeleteAccountSerializer, ChangePasswordSerializer
+from accounts.serializers import EmailSerializer, OTPWithPasswordSerializer,SignupSerializer, UserSerializer,DeleteAccountSerializer, ChangePasswordSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -37,14 +37,16 @@ class VerifyEmailOTPAPIView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        serializer = OTPVerifySerializer(data=request.data)
+        serializer = OTPWithPasswordSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         code = serializer.validated_data['code']
+        password = serializer.validated_data['password']
+
         email = request.session.get('email')
         if not email:
-            return Response({"detail":"ایمیل در session وجود ندارد."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "ایمیل در session وجود ندارد."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             otp = EmailOTP.objects.filter(email=email, code=code, is_used=False).latest('created_at')
@@ -54,13 +56,31 @@ class VerifyEmailOTPAPIView(APIView):
         if otp.is_expired():
             return Response({"detail": "کد منقضی شده است."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # استفاده شده علامت زده شود
         otp.is_used = True
         otp.save()
 
+        # اگر کاربر وجود ندارد، بسازیم
         user, created = User.objects.get_or_create(username=email, defaults={'email': email})
+
+        # پسورد کاربر را تنظیم کنیم
+        user.set_password(password)
+        user.save()
+
+        # ورود کاربر
         login(request, user)
+
+        # تولید JWT
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
         serializer_user = UserSerializer(user)
-        return Response({"detail":"ورود موفقیت‌آمیز بود.", "user": serializer_user.data}, status=status.HTTP_200_OK)
+        return Response({
+            "detail": "ورود موفقیت‌آمیز بود.",
+            "user": serializer_user.data,
+            "access": access_token,
+            "refresh": str(refresh)
+        }, status=status.HTTP_200_OK)
 
 
 class SignupAPIView(APIView):

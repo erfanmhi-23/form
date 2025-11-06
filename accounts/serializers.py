@@ -25,8 +25,9 @@ class EmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
-class OTPVerifySerializer(serializers.Serializer):
+class OTPWithPasswordSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=10)
+    password = serializers.CharField(write_only=True, min_length=8)
 
 
 class SignupSerializer(serializers.ModelSerializer):
