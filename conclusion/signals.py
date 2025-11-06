@@ -7,14 +7,14 @@ from asgiref.sync import async_to_sync
 @receiver(post_save, sender=Answer)
 def update_form_report(sender, instance, created, **kwargs):
     if created:
-        form = instance.form
-        report, _ = Conclusion.objects.get_or_create(form=form)
+        process = instance.process
+        report, _ = Conclusion.objects.get_or_create(process=process)
 
-        report.answer_count = form.answers.count()
-        report.view_count = form.view_count
+        report.answer_count = process.answers.count()
+        report.view_count = process.view_count
 
         summary = {}
-        answers = form.answers.all()
+        answers = process.answers.all()
         for ans in answers:
             q_id = f"question_{ans.id}"
             if q_id not in summary:
@@ -44,6 +44,6 @@ def update_form_report(sender, instance, created, **kwargs):
 
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"form_report_{form.id}",
+            f"form_report_{process.id}",
             {"type": "send_report", "report": report.summary}
         )
