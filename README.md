@@ -20,7 +20,6 @@
 - Redis
 - PostgreSQL
 - graphql
-- celery
 - nginx
   
 
