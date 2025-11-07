@@ -6,6 +6,8 @@ from .serializers import FormReportSerializer
 from .models import ReportSubscription, Form,Conclusion
 from django.core.mail import send_mail
 from form.models import Category, Form, Process, Answer
+from django.conf import settings
+from rest_framework.permissions import IsAdminUser
 
 class AllReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -42,116 +44,39 @@ class FormReportView(APIView):
         serializer = FormReportSerializer(reports, many=True)
         return Response(serializer.data)
 
-
-
-class SubscribeReportView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, form_id):
-        email = request.data.get('email')
-        interval = request.data.get('interval', 'weekly')
-
+class SendAllReportsEmailAPIView(APIView):
+    permission_classes = [IsAdminUser]
+    def post(self, request):
+        email = request.data.get("email") or request.session.get("email")
         if not email:
-            return Response({"error": "Email is required"}, status=400)
-        if interval not in ['weekly', 'monthly']:
-            return Response({"error": "Invalid interval"}, status=400)
+            return Response({"detail": "Email is required or not found in session."}, status=400)
 
-        try:
-            form = Form.objects.get(id=form_id)
-        except Form.DoesNotExist:
-            return Response({"error": "Form not found"}, status=404)
-
-        sub, created = ReportSubscription.objects.get_or_create(
-            form=form,
-            email=email,
-            defaults={"interval": interval}
+        aggregation = Conclusion.objects.aggregate(
+            total_answers=Sum('answer_count'),
+            total_reports=Count('id')
         )
-        if not created:
-            sub.interval = interval
-            sub.save()
 
-        return Response({"message": f"Subscription saved for {email}", "interval": interval})
+        conclusions = Conclusion.objects.all().values(
+            'id', 'user_id', 'process_id', 'answer_list', 'mean_rating', 'answer_count'
+        )
 
+        email_text = f"📊 Summary of All Reports:\n\n"
+        email_text += f"Total Answers: {aggregation['total_answers']}\n"
+        email_text += f"Total Reports: {aggregation['total_reports']}\n\n"
 
-class SendFormReportEmailAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, form_id):
-        email = request.session.get('email')
-        if not email:
-            return Response({"detail": "Email not found in session"}, status=400)
-
-        try:
-            form = Form.objects.get(id=form_id)
-            report = Conclusion.objects.get(form=form)
-        except Form.DoesNotExist:
-            return Response({"detail": "فرم پیدا نشد."}, status=404)
-        except Conclusion.DoesNotExist:
-            return Response({"detail": "گزارش برای این فرم موجود نیست."}, status=404)
-
-        summary_text = ""
-        for q_id, data in report.summary.items():
-            summary_text += f"Question: {q_id}\n"
-            summary_text += f"Type: {data['type']}\n"
-            summary_text += f"Answer count: {data['count']}\n"
-            if data['type'] == 'rating':
-                summary_text += f"Average: {data['average']}\n"
-            elif data['type'] in ['select', 'checkbox']:
-                summary_text += "Options:\n"
-                for option, count in data['options'].items():
-                    summary_text += f"  {option}: {count}\n"
-            summary_text += "\n"
+        email_text += "Detailed Reports:\n"
+        for c in conclusions:
+            email_text += f"- Report #{c['id']} (User {c['user_id']}, Process {c['process_id']})\n"
+            email_text += f"  Mean Rating: {c['mean_rating']}\n"
+            email_text += f"  Answer Count: {c['answer_count']}\n"
+            email_text += f"  Answers: {c['answer_list']}\n\n"
 
         send_mail(
-            subject=f"Form Report: {form.title}",
-            message=f"Hello!\n\nReport for form {form.title}:\n\n{summary_text}",
-            from_email=None,
+            subject="All Form Reports Summary",
+            message=email_text,
+            from_email=settings.EMAIL_HOST_USER,
             recipient_list=[email],
             fail_silently=False,
         )
 
-        return Response({"detail": f"Report sent to {email}"})
-
-class AllAnswersReportView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        categories_data = []
-
-        categories = Category.objects.all()
-        for cat in categories:
-            cat_dict = {
-                "id": cat.id,
-                "name": cat.name,
-                "forms": []
-            }
-
-            forms = cat.forms.all()
-            for form in forms:
-                form_dict = {
-                    "id": form.id,
-                    "title": form.title,
-                    "processes": []
-                }
-
-                processes = form.processes.all()
-                for process in processes:
-                    process_dict = {
-                        "id": process.id,
-                        "answers": []
-                    }
-
-                    answers = process.answers.all()
-                    for ans in answers:
-                        answer_data = {
-                            "type": ans.type,
-                            "answer": ans.answer
-                        }
-                        process_dict["answers"].append(answer_data)
-
-                    form_dict["processes"].append(process_dict)
-                cat_dict["forms"].append(form_dict)
-
-            categories_data.append(cat_dict)
-
-        return Response({"categories": categories_data})
+        return Response({"detail": f"All reports sent to {email}"}, status=200)
