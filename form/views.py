@@ -230,7 +230,7 @@ class AnswerView(APIView):
                     for fid in missing_ids
                 ]
                 return Response({
-                    'error': 'You must answer all forms in this process because it is linear.',
+                    'error': 'You must answer all forms in THIS process because it is linear or you answered some forms which is not in this process.',
                     'missing_forms': missing_ids,
                     'missing_titles': missing_titles
                 }, status=400)
