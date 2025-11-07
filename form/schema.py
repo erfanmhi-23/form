@@ -29,7 +29,6 @@ class ProcessType(DjangoObjectType):
         model = Process
         fields = "__all__"
 
-    # برای نمایش جزئیات Formها درون Process
     process_forms = graphene.List(ProcessFormType)
 
     def resolve_process_forms(self, info):

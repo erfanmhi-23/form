@@ -1,4 +1,5 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
+import re
 import json
 
 class FormReportConsumer(AsyncWebsocketConsumer):
