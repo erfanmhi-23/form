@@ -8,14 +8,15 @@ class FormReportConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        self.process_id = self.scope['url_route']['kwargs']['process_id']
-        self.group_name = f"form_report_{self.process_id}"
+        process_id = self.scope['url_route']['kwargs']['process_id']
+        safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", str(process_id))
+        self.group_name = f"form_report_{safe_id}"
+        if len(self.group_name) > 100:
+            self.group_name = self.group_name[:100]
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.group_name, self.channel_name)
-
-    async def send_report(self, event):
-        await self.send(text_data=json.dumps(event['report']))
+        if hasattr(self, "group_name") and self.group_name:
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)

@@ -3,7 +3,7 @@ services:
   web:
     build: .
     container_name: django
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    command: daphne -b 0.0.0.0 -p 8000 core.asgi:application
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
