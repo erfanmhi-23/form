@@ -4,8 +4,6 @@ from .models import Category, Form, Process, Answer, ProcessForm
 from accounts.models import User
 
 
-# ==== Object Types ====
-
 class CategoryType(DjangoObjectType):
     class Meta:
         model = Category
@@ -40,27 +38,19 @@ class AnswerType(DjangoObjectType):
         model = Answer
         fields = "__all__"
 
-
-# ==== Query ====
-
 class Query(graphene.ObjectType):
-    # Category
     all_categories = graphene.List(CategoryType)
     category_by_id = graphene.Field(CategoryType, id=graphene.Int(required=True))
 
-    # Form
     all_forms = graphene.List(FormType)
     form_by_id = graphene.Field(FormType, id=graphene.Int(required=True))
 
-    # Process
     all_processes = graphene.List(ProcessType)
     process_by_id = graphene.Field(ProcessType, id=graphene.Int(required=True))
 
-    # Answer
     all_answers = graphene.List(AnswerType)
     answers_by_user = graphene.List(AnswerType, user_id=graphene.Int(required=True))
 
-    # === Resolvers ===
     def resolve_all_categories(root, info):
         return Category.objects.all()
 
@@ -85,7 +75,5 @@ class Query(graphene.ObjectType):
     def resolve_answers_by_user(root, info, user_id):
         return Answer.objects.filter(user_id=user_id)
 
-
-# ==== Schema ====
 
 schema = graphene.Schema(query=Query)
