@@ -56,3 +56,4 @@ django-redis
 channels>=4.1
 channels_redis>=4.1
 graphene-django>=3.2
+daphne>=4.0

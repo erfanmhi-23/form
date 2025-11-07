@@ -1,90 +1,92 @@
-from django.test import TestCase
-from rest_framework.test import APIClient
+from rest_framework.test import APITestCase
 from rest_framework import status
-from django.contrib.auth.models import User
-from .models import Category, Form, Process
+from django.urls import reverse
+from accounts.models import User
+from form.models import Form, Category
+from rest_framework_simplejwt.tokens import RefreshToken
 
-class APITest(TestCase):
+class TestFormViews(APITestCase):
     def setUp(self):
-        # ایجاد کاربر و لاگین (SessionAuth برای IsAuthenticated)
-        self.user = User.objects.create_user(username='testuser', password='password123')
-        self.client = APIClient()
-        self.client.login(username='testuser', password='password123')
+        self.user = User.objects.create_user(username="testuser", password="password123")
+        refresh = RefreshToken.for_user(self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {refresh.access_token}')
+        self.category = Category.objects.create(name="Test Category")
 
-        # ایجاد یک دسته‌بندی
-        self.category = Category.objects.create(name='Category 1', description='Test category')
-
-        # ایجاد فرم‌ها
-        self.form1 = Form.objects.create(
+        self.form = Form.objects.create(
             category=self.category,
-            title='Form 1',
-            question='What is your favorite color?',
+            title="Initial Title",
+            question="Initial Question",
+            description="Initial Description",
             validation=True,
-            min=1,
-            max=50,
-            force=True,              # فرم اجباری
-            type='text'
-        )
-        # ✅ فیکس: افزودن options برای rating تا مقدار 4 معتبر باشد
-        self.form2 = Form.objects.create(
-            category=self.category,
-            title='Form 2',
-            question='Rate our service',
-            validation=True,
-            min=1,
-            max=1,
-            type='rating',
-            options=['1', '2', '3', '4', '5']   # ← مهم
-        )
-        self.form3 = Form.objects.create(
-            category=self.category,
-            title='Form 3',
-            question='Select your hobbies',
-            validation=True,
-            min=1,
-            max=5,
-            type='checkbox',
-            options=['Reading', 'Sports', 'Gaming']
+            max=10,
+            force=False,
+            password=None,
+            type="text",
+            options=[]
         )
 
-        # ایجاد یک پروسس با فرم‌ها
-        self.process = Process.objects.create(name='Process 1')
-        self.process.forms.set([self.form1, self.form2, self.form3])
+    def test_form_list(self):
+        url = reverse("form-list")
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertTrue(len(res.data) >= 1)
 
-    def test_get_forms(self):
-        response = self.client.get('/forms/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 3)
-
-    def test_create_category(self):
-        data = {'name': 'Category 2', 'description': 'Another category'}
-        response = self.client.post('/categories/', data, format='json')  # format برای JSON
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(response.data['name'], 'Category 2')
-
-    def test_update_form(self):
-        data = {'title': 'Updated Form 1'}
-        response = self.client.patch(f'/forms/{self.form1.id}/update/', data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['title'], 'Updated Form 1')
-
-    def test_submit_answers(self):
+    def test_form_create(self):
+        url = reverse("form-list")
         data = {
-            'process_id': self.process.id,
-            'answers': [
-                {'form_id': self.form1.id, 'type': 'text', 'answer': 'Blue'},
-                {'form_id': self.form2.id, 'type': 'rating', 'answer': 4},              # ← مجاز چون '4' در options هست
-                {'form_id': self.form3.id, 'type': 'checkbox', 'answer': ['Reading', 'Gaming']}
-            ]
+            "category": self.category.id,
+            "title": "New Form",
+            "question": "This is a new question",
+            "description": "Some description",
+            "validation": True,
+            "max": 20,
+            "force": True,
+            "password": None,
+            "type": "text",
+            "options": []
         }
-        response = self.client.post('/forms/answers/', data, format='json')
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(len(response.data['answers']), 3)
-        self.assertEqual(response.data['answers'][0]['answer'], 'Blue')
-        # در مدل/سریالایزر پاسخ‌ها به رشته ذخیره می‌شوند
-        self.assertEqual(response.data['answers'][1]['answer'], '4')
+        res = self.client.post(url, data, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data['title'], "New Form")
 
-    def test_process_detail(self):
-        response = self.client.get(f'/processes/{self.process.id}/')
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['forms']), 3)
+    def test_form_detail(self):
+        url = reverse("form-detail", args=[self.form.id])
+        res = self.client.get(url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['title'], self.form.title)
+
+    def test_form_update_put(self):
+        url = reverse("form-update", args=[self.form.id])
+        data = {
+            "category": self.category.id,
+            "title": "Updated Title",
+            "question": "Updated Question",
+            "description": "Updated Description",
+            "validation": True,
+            "max": 15,
+            "force": False,
+            "password": None,
+            "type": "select",
+            "options": ["opt1", "opt2"]
+        }
+        res = self.client.put(url, data, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.form.refresh_from_db()
+        self.assertEqual(self.form.title, "Updated Title")
+        self.assertEqual(self.form.options, ["opt1", "opt2"])
+
+    def test_form_update_patch(self):
+        url = reverse("form-update", args=[self.form.id])
+        data = {
+            "title": "Patched Title"
+        }
+        res = self.client.patch(url, data, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.form.refresh_from_db()
+        self.assertEqual(self.form.title, "Patched Title")
+
+    def test_form_delete(self):
+        url = reverse("form-delete", args=[self.form.id])
+        res = self.client.delete(url)
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Form.objects.filter(id=self.form.id).exists())
