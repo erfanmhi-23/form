@@ -112,7 +112,12 @@ url:http://localhost:8080/form/forms/answers/
 body requirements:process_id , answers{form_id , type , answer , #password}
 method:post
 ---------------
-
+20.conclusion id
+url:http://localhost:8080/report/report/form/<int:process_id>/
+body requirements:
+method:get
+---------------
+21.
 url:
 body requirements:
 method:
@@ -127,10 +132,7 @@ url:
 body requirements:
 method:
 ---------------
-
-url:
-body requirements:
-method:
+#graphql#
 ---------------
 graphql:account
 {

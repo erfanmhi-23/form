@@ -55,22 +55,16 @@ class VerifyEmailOTPAPIView(APIView):
 
         if otp.is_expired():
             return Response({"detail": "کد منقضی شده است."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # استفاده شده علامت زده شود
+        
         otp.is_used = True
         otp.save()
 
-        # اگر کاربر وجود ندارد، بسازیم
         user, created = User.objects.get_or_create(username=email, defaults={'email': email})
 
-        # پسورد کاربر را تنظیم کنیم
         user.set_password(password)
         user.save()
-
-        # ورود کاربر
         login(request, user)
 
-        # تولید JWT
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
 
