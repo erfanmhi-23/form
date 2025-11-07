@@ -50,10 +50,10 @@ class Form(models.Model):
  
         if self.type in ['checkbox', 'select']:
             if not self.options or len(self.options) == 0:
-                raise ValidationError("برای نوع checkbox یا select باید گزینه‌ها (options) پر شود.")
+                raise ValidationError("for select or checkbox you must fill options")
             for opt in self.options:
                 if not isinstance(opt, str):
-                    raise ValidationError("تمام گزینه‌ها باید رشته (string) باشند.")
+                    raise ValidationError("all the options must be string")
 
    
         elif self.type == 'rating':
@@ -65,12 +65,12 @@ class Form(models.Model):
                     try:
                         int(opt)
                     except ValueError:
-                        raise ValidationError("تمام گزینه‌ها برای نوع rating باید عددی باشند.")
+                        raise ValidationError("all the options for rating must be integear")
 
   
         elif self.type == 'text':
             if self.options and len(self.options) > 0:
-                raise ValidationError("برای نوع text نیازی به options نیست.")
+                raise ValidationError("there is no need for options in text type")
             
     def save(self, *args, **kwargs):
         if self.type == 'rating' and (not self.options or len(self.options) == 0):

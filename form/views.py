@@ -145,15 +145,11 @@ class ProcessListCreateAPIView(generics.ListCreateAPIView):
 
 
 class ProcessRetrieveAPIView(generics.RetrieveUpdateAPIView):
-    """
-    View برای دریافت (GET) و ویرایش (PUT/PATCH) یک Process خاص.
-    """
     permission_classes = [permissions.IsAuthenticated]
     queryset = Process.objects.all()
     serializer_class = ProcessSerializer
 
     def update(self, request, *args, **kwargs):
-        """ویرایش کامل (PUT) یا جزئی (PATCH) یک Process"""
         partial = kwargs.pop('partial', False)
         try:
             process = self.get_object()
@@ -183,7 +179,7 @@ class AnswerView(APIView):
         except Process.DoesNotExist:
             return Response({'error': 'Process not found.'}, status=404)
 
-        # 🔐 بررسی پسورد پروسس
+        # process form
         if process.password:
             if not process_password:
                 return Response({'error': 'Process password is required.'}, status=400)
@@ -196,10 +192,10 @@ class AnswerView(APIView):
         process_forms_qs = process.forms.all()
         process_forms = {f.id: f for f in process_forms_qs}
 
-        # 🔹 شماره سوال‌ها بر اساس ترتیب id فرم‌ها
+        # question numbers based on order
         question_numbers = {f.id: idx + 1 for idx, f in enumerate(process_forms_qs.order_by('id'))}
 
-        # 🔹 فرم‌های فعال و اجباری
+        # force and validation
         active_forms = [f for f in process_forms_qs if f.validation]
         required_forms = [f for f in active_forms if f.force]
 
@@ -215,9 +211,9 @@ class AnswerView(APIView):
                 'missing_titles': missing_titles
             }, status=400)
 
-        # 🔹 بررسی ترتیب فرم‌ها در حالت liner
+        # linear
         if process.liner:
-            # فرم‌ها بر اساس order مرتب می‌شوند
+            # order forms
             ordered_forms = list(
                 ProcessForm.objects.filter(process=process)
                 .order_by('order')
@@ -226,7 +222,7 @@ class AnswerView(APIView):
             ordered_form_ids = [pf.form.id for pf in ordered_forms]
             answered_form_ids = [a.get('form_id') for a in answers_data]
 
-            # ۱. بررسی اینکه همه‌ی فرم‌ها پاسخ داده شده‌اند
+            # all the forms must be answerd
             if set(answered_form_ids) != set(ordered_form_ids):
                 missing_ids = [fid for fid in ordered_form_ids if fid not in answered_form_ids]
                 missing_titles = [
@@ -239,8 +235,7 @@ class AnswerView(APIView):
                     'missing_titles': missing_titles
                 }, status=400)
 
-            # ۲. بررسی ترتیب پاسخ‌ها
-            # فرم‌ها باید دقیقاً به ترتیب order ارسال شوند
+            #must be in order
             for idx, form_id in enumerate(answered_form_ids):
                 expected_form_id = ordered_form_ids[idx]
                 if form_id != expected_form_id:
@@ -270,7 +265,7 @@ class AnswerView(APIView):
                     'form_id': form.id
                 }, status=400)
 
-            # 🔐 بررسی پسورد فرم
+            # forms password
             if form.password:
                 if not provided_password:
                     return Response({
@@ -283,14 +278,14 @@ class AnswerView(APIView):
                         'form_id': form.id
                     }, status=403)
 
-            # 🔹 اعتبارسنجی نوع پاسخ
+            # validation for type
             if answer_type != form.type:
                 return Response({
                     'error': f'Type mismatch: Form type is {form.type}, but answer type is {answer_type}.',
                     'form_id': form.id
                 }, status=400)
 
-            # 🔹 اعتبارسنجی بر اساس نوع پاسخ
+            # validation based on type
             if answer_type in ['select', 'checkbox']:
                 if isinstance(answer_value, list):
                     invalid_options = [opt for opt in answer_value if opt not in form.options]
@@ -346,7 +341,7 @@ class AnswerView(APIView):
                         'length': text_length
                     }, status=400)
 
-            # ✅ ذخیره پاسخ
+            # save answer
             serializer = AnswerSerializer(data={
                 'form': form.id,
                 'process': process.id,
@@ -361,15 +356,15 @@ class AnswerView(APIView):
                 serialized_data['question_number'] = question_numbers[form.id]
             created_answers.append(serialized_data)
 
-            # افزایش view_count فرم
+            # add form view count
             form.view_count = models.F('view_count') + 1
             form.save(update_fields=['view_count'])
 
-        # ✅ افزایش view_count پروسس
+        # add process view count
         process.view_count = models.F('view_count') + 1
         process.save(update_fields=['view_count'])
 
-        # 🧠 ثبت در Conclusion
+        # save in cunclusion
         user = request.user
         conclusion = Conclusion.objects.create(
             user=user,

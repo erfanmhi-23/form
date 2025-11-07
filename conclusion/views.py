@@ -1,26 +1,47 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from django.db.models import Sum, Count
 from rest_framework import permissions,status
 from .serializers import FormReportSerializer
 from .models import ReportSubscription, Form,Conclusion
 from django.core.mail import send_mail
 from form.models import Category, Form, Process, Answer
 
+class AllReportView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        aggregation = Conclusion.objects.aggregate(
+            total_answers=Sum('answer_count'),
+            total_reports=Count('id')
+        )
+
+        conclusions = Conclusion.objects.all().values(
+            'id', 'user_id', 'process_id', 'answer_list', 'mean_rating', 'answer_count'
+        )
+        
+        return Response({
+            "summary": aggregation,
+            "data": list(conclusions)
+        })
+
 class FormReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, form_id):
+    def get(self, request, process_id):
         user = request.user
+
         if not user.is_staff:
             return Response({"detail": "Not authorized"}, status=403)
 
-        try:
-            report = Conclusion.objects.get(form_id=form_id)
-        except Conclusion.DoesNotExist:
-            return Response({"detail": "Report not found"}, status=404)
+        reports = Conclusion.objects.filter(process_id=process_id)
 
-        serializer = FormReportSerializer(report)
+        if not reports.exists():
+            return Response({"detail": "No reports found"}, status=404)
+
+        serializer = FormReportSerializer(reports, many=True)
         return Response(serializer.data)
+
 
 
 class SubscribeReportView(APIView):
