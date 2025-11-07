@@ -21,7 +21,7 @@ class FormAdmin(admin.ModelAdmin):
 
 @admin.register(Process)
 class ProcessAdmin(admin.ModelAdmin):
-    list_display = ('id', 'liner', 'view_count')
+    list_display = ('id', 'liner','name','view_count')
     search_fields = ('form__title',)
     list_filter = ('liner',)
     inlines = [ProcessFormInline]
