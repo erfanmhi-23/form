@@ -3,6 +3,7 @@ from django.dispatch import receiver
 from .models import Answer, Conclusion
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+import re
 
 @receiver(post_save, sender=Answer)
 def update_form_report(sender, instance, created, **kwargs):
@@ -10,12 +11,12 @@ def update_form_report(sender, instance, created, **kwargs):
         process = instance.process
         report, _ = Conclusion.objects.get_or_create(process=process)
 
+        # بروزرسانی summary
         report.answer_count = process.answers.count()
         report.view_count = process.view_count
 
         summary = {}
-        answers = process.answers.all()
-        for ans in answers:
+        for ans in process.answers.all():
             q_id = f"question_{ans.id}"
             if q_id not in summary:
                 summary[q_id] = {"type": ans.type, "count": 0}
@@ -25,7 +26,6 @@ def update_form_report(sender, instance, created, **kwargs):
                     summary[q_id]["options"] = {}
 
             summary[q_id]["count"] += 1
-
             if ans.type == "rating":
                 summary[q_id]["total"] += int(ans.answer)
             elif ans.type == "select":
@@ -42,8 +42,13 @@ def update_form_report(sender, instance, created, **kwargs):
         report.summary = summary
         report.save()
 
+        # نام گروه امن
+        safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", str(process.id))
+        group_name = f"form_report_{safe_id}"
+
+        # ارسال از طریق Channels
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
-            f"form_report_{process.id}",
-            {"type": "send_report", "report": report.summary}
+            group_name,
+            {"type": "send_report", "report": report.summary or {}}
         )
