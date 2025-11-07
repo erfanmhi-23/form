@@ -10,7 +10,7 @@ from django.conf import settings
 from rest_framework.permissions import IsAdminUser
 
 class AllReportView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         aggregation = Conclusion.objects.aggregate(
@@ -60,7 +60,7 @@ class SendAllReportsEmailAPIView(APIView):
             'id', 'user_id', 'process_id', 'answer_list', 'mean_rating', 'answer_count'
         )
 
-        email_text = f"📊 Summary of All Reports:\n\n"
+        email_text = f" Summary of All Reports:\n\n"
         email_text += f"Total Answers: {aggregation['total_answers']}\n"
         email_text += f"Total Reports: {aggregation['total_reports']}\n\n"
 
