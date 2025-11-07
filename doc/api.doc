@@ -125,15 +125,17 @@ body requirements:
 +authorization
 method:get
 ---------------
-
-url:
-body requirements:
-method:
+22.send conclusion email
+url:http://localhost:8080/report/report/send-all/
+body requirements:email
++authorization
+method:post
 ---------------
-
-url:
-body requirements:
-method:
+23.intervaly
+url:http://localhost:8080/report/report/send-scheduled/
+body requirements:email,interval
++authorization
+method:post
 ---------------
 #graphql#
 ---------------
