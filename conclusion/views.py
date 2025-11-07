@@ -1,11 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import permissions, status
 from django.db.models import Sum, Count
-from rest_framework import permissions,status
-from .serializers import FormReportSerializer
-from .models import ReportSubscription, Form,Conclusion
 from django.core.mail import send_mail
-from form.models import Category, Form, Process, Answer
+from .serializers import FormReportSerializer
+from .models import ReportSubscription, Conclusion #here <------------------------
+from form.models import Category, Form, Process, Answer #here <------------------------
 
 class AllReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -73,7 +73,7 @@ class SubscribeReportView(APIView):
         return Response({"message": f"Subscription saved for {email}", "interval": interval})
 
 
-class SendFormReportEmailAPIView(APIView):
+class SendFormReportEmailAPIView(APIView): #here <------------------------
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, form_id):
@@ -83,34 +83,40 @@ class SendFormReportEmailAPIView(APIView):
 
         try:
             form = Form.objects.get(id=form_id)
-            report = Conclusion.objects.get(form=form)
         except Form.DoesNotExist:
             return Response({"detail": "فرم پیدا نشد."}, status=404)
-        except Conclusion.DoesNotExist:
+
+        # گزارش را از طریق process مربوط به همان فرم پیدا می‌کنیم
+        report = Conclusion.objects.filter(process__form=form).order_by('-updated_at').first()
+        if not report:
             return Response({"detail": "گزارش برای این فرم موجود نیست."}, status=404)
 
-        summary_text = ""
-        for q_id, data in report.summary.items():
-            summary_text += f"Question: {q_id}\n"
-            summary_text += f"Type: {data['type']}\n"
-            summary_text += f"Answer count: {data['count']}\n"
-            if data['type'] == 'rating':
-                summary_text += f"Average: {data['average']}\n"
-            elif data['type'] in ['select', 'checkbox']:
-                summary_text += "Options:\n"
-                for option, count in data['options'].items():
-                    summary_text += f"  {option}: {count}\n"
-            summary_text += "\n"
+        # ساخت متن ایمیل بر اساس فیلدهای موجود در Conclusion
+        summary_text = []
+        summary_text.append(f"Total answers: {report.answer_count}")
+        if report.mean_rating is not None:
+            summary_text.append(f"Mean rating: {report.mean_rating}")
+
+        # اگر answer_list ساختار سوال/گزینه دارد، آن را هم اضافه کن
+        if isinstance(report.answer_list, dict):
+            summary_text.append("Answers:")
+            for q_key, val in report.answer_list.items():
+                summary_text.append(f"- {q_key}: {val}")
+
+        body = "Hello!\n\nReport for form {title}:\n\n{content}".format(
+            title=form.title,
+            content="\n".join(summary_text)
+        )
 
         send_mail(
             subject=f"Form Report: {form.title}",
-            message=f"Hello!\n\nReport for form {form.title}:\n\n{summary_text}",
+            message=body,
             from_email=None,
             recipient_list=[email],
             fail_silently=False,
         )
-
         return Response({"detail": f"Report sent to {email}"})
+#------------------------
 
 class AllAnswersReportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
