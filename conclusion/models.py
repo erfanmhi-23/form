@@ -29,7 +29,7 @@ class Conclusion(models.Model):
     answer_count = models.IntegerField(default=0)
     answer_list = models.JSONField(default=dict)
     mean_rating = models.FloatField(blank=True,null=True)
-    usable_category = models.CharField(blank=True,null=True)
+    usable_category = models.CharField(max_length=255, blank=True, null=True) #here <------------------------
 
     updated_at = models.DateTimeField(auto_now=True)
 
