@@ -11,7 +11,6 @@ def update_form_report(sender, instance, created, **kwargs):
         process = instance.process
         report, _ = Conclusion.objects.get_or_create(process=process)
 
-        # بروزرسانی summary
         report.answer_count = process.answers.count()
         report.view_count = process.view_count
 
@@ -42,11 +41,9 @@ def update_form_report(sender, instance, created, **kwargs):
         report.summary = summary
         report.save()
 
-        # نام گروه امن
         safe_id = re.sub(r"[^a-zA-Z0-9_\-\.]", "_", str(process.id))
         group_name = f"form_report_{safe_id}"
 
-        # ارسال از طریق Channels
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             group_name,
