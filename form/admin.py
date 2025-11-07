@@ -15,7 +15,7 @@ class CategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Form)
 class FormAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'category', 'force', 'question_num', 'view_count', 'create', 'update', 'question_num', 'type', 'options')
+    list_display = ('id', 'title', 'category', 'force', 'question_num', 'view_count', 'create', 'update', 'type', 'options')
     search_fields = ('title', 'question', 'description')
     list_filter = ('category', 'force', 'question_num', 'create', 'type')
 
